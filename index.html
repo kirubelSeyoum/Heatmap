@@ -180,6 +180,30 @@ body{padding-block:max(20px,env(safe-area-inset-top)) max(40px,env(safe-area-ins
   .wrap{gap:10px}
 }
 @media (pointer:coarse){#dropmsg{display:none}}
+.mleft{flex:0 0 270px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.mact{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mact button:disabled{opacity:.5;cursor:not-allowed}
+.mact #x-status{flex-basis:100%;min-height:1.4em;font-size:13px}
+.mact #x-dl{flex-basis:100%;text-align:center}
+body.modalopen{overflow:hidden}
+/* export dialog on phones: preview and its buttons stay pinned at the top, only the settings scroll */
+@media (max-width:640px){
+  .modal{padding:0;align-items:stretch}
+  .mpanel{flex-direction:column;flex-wrap:nowrap;gap:8px;border-radius:0;border:0;max-width:none;height:100%;max-height:none;overflow:hidden;
+    padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+  .mleft{flex:0 0 auto;width:100%;align-items:center}
+  .mpre{height:min(38dvh,360px);width:auto;aspect-ratio:9/16;margin:0 auto}
+  .mact{width:100%;justify-content:center}
+  .mact #x-status{text-align:center}
+  .mopts{flex:1 1 auto;min-height:0;overflow:auto;padding-bottom:14px;overscroll-behavior:contain}
+}
+@media (max-height:500px) and (min-width:641px){
+  .modal{padding:0}
+  .mpanel{height:100%;max-height:none;border-radius:0;flex-wrap:nowrap;overflow:hidden}
+  .mleft{flex:0 0 auto;width:auto}
+  .mpre{height:calc(100dvh - 120px);min-height:150px;width:auto;aspect-ratio:9/16}
+  .mopts{overflow:auto;min-height:0}
+}
 </style>
 </head><body>
 <div class="wrap">
@@ -236,7 +260,14 @@ body{padding-block:max(20px,env(safe-area-inset-top)) max(40px,env(safe-area-ins
 </div>
 <div class="modal" id="xmodal" role="dialog" aria-modal="true" aria-label="Export route video">
   <div class="mpanel">
-    <div class="mpre"><canvas id="xcv" width="1080" height="1920"></canvas><video id="xvid" controls playsinline loop hidden></video></div>
+    <div class="mleft">
+      <div class="mpre"><canvas id="xcv" width="1080" height="1920"></canvas><video id="xvid" controls playsinline loop hidden></video></div>
+      <div class="mact">
+        <button id="x-prev" type="button">Preview</button><button id="x-rec" type="button" class="primary">Record video</button><button id="x-close" type="button">Close</button>
+        <div id="x-status" aria-live="polite"></div>
+        <a id="x-dl" class="btn primary" hidden>Download video</a>
+      </div>
+    </div>
     <div class="mopts">
       <h2 style="margin:0;font-size:16px">Export route video</h2>
       <div id="xname" style="color:var(--ink2)"></div>
@@ -251,10 +282,6 @@ body{padding-block:max(20px,env(safe-area-inset-top)) max(40px,env(safe-area-ins
         <select id="x-pos"><option value="bottom" selected>Bottom</option><option value="top">Top</option></select></label>
       <label for="x-col">Route colour
         <input id="x-col" type="color" value="#ffb347"></label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button id="x-prev" type="button">Preview</button><button id="x-rec" type="button" class="primary">Record video</button><button id="x-close" type="button">Close</button></div>
-      <div id="x-status" aria-live="polite" style="min-height:1.4em"></div>
-      <a id="x-dl" class="btn primary" hidden>Download video</a>
       <p id="x-note" style="margin:0;color:var(--ink2);font-size:12px"></p>
     </div>
   </div>
@@ -802,9 +829,20 @@ window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(funct
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){window.__fit()});
 // touch devices: no drag and drop, folder pickers are rarely available, and some pickers grey out .gpx when accept is set
 (function(){
-  var coarse=window.matchMedia&&matchMedia('(pointer:coarse)').matches,noDir=!('webkitdirectory' in document.createElement('input'));
-  if(coarse){$('file').removeAttribute('accept');$('dropmsg').textContent='Tap Add GPX files and select one or more rides.'}
-  if(coarse||noDir){var fl=document.querySelector('label[for=folder]');if(fl)fl.hidden=true;$('folder').disabled=true}
+  var coarse=window.matchMedia&&matchMedia('(pointer:coarse)').matches;
+  if(coarse){$('file').removeAttribute('accept');$('folder').removeAttribute('accept');$('dropmsg').textContent='Tap Add GPX files, or Add folder to load a whole folder.'}
+  // Add folder: use the directory picker where the browser has one, otherwise the standard folder input
+  // (a browser without folder support simply shows its normal multi-file picker).
+  function walkDir(h,out){return (async function go(dir){
+    for await(const pair of dir.entries()){var e=pair[1];
+      if(e.kind==='file'){if(/\.gpx$/i.test(pair[0]))out.push(await e.getFile())}else await go(e)}})(h)}
+  var fl=document.querySelector('label[for=folder]');
+  if(fl)fl.addEventListener('click',function(e){
+    if(!window.showDirectoryPicker)return;
+    e.preventDefault();
+    window.showDirectoryPicker().then(function(h){var out=[];return walkDir(h,out).then(function(){T.readFiles(out)})})
+      .catch(function(err){if(err&&err.name==='AbortError')return;$('folder').click()});
+  });
 })();
 window.__stats=stats;window.__table=function(){table(T.acts())};
 window.__refresh=function(refit){window.__heat.rebuild(refit);stats();if(window.__onData)window.__onData()};
@@ -1227,9 +1265,9 @@ function open(i){
   $('x-note').textContent=CAN_SAVE?'On a clip in your editor, set the blend mode to Screen or Lighten and the black becomes transparent.':
     (window.__STANDALONE?'This browser cannot record video, so only the preview works.':'Saving a video needs the downloadable trail-heat-map.html. You can still preview the animation here.');
   $('x-rec').disabled=!CAN_SAVE;setStatus('');
-  $('xmodal').classList.add('on');layout();
+  $('xmodal').classList.add('on');document.body.classList.add('modalopen');$('xmodal').querySelector('.mopts').scrollTop=0;layout();
 }
-function close(){stopRun();resetOutput();$('xmodal').classList.remove('on')}
+function close(){stopRun();resetOutput();$('xmodal').classList.remove('on');document.body.classList.remove('modalopen')}
 $('x-dur').addEventListener('change',function(){this.value=durVal()});
 ['x-size','x-pos','x-col','x-graph'].forEach(function(id){$(id).addEventListener('input',function(){if(!X.running){resetOutput();layout()}})});
 $('x-prev').onclick=function(){run(false)};
