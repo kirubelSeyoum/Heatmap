@@ -274,7 +274,7 @@ body.modalopen{overflow:hidden}
       <label for="x-dur">Animation length (seconds)
         <input id="x-dur" type="number" min="1" max="600" step="any" value="8" inputmode="decimal"></label>
       <label for="x-ease">Easing
-        <select id="x-ease"><option value="linear">Linear (constant pace)</option><option value="smooth" selected>Smooth (slow start and end)</option><option value="in">Ease in (starts slow)</option><option value="out">Ease out (ends slow)</option><option value="dramatic">Dramatic (long pause, fast middle)</option></select></label>
+        <select id="x-ease"><option value="linear">Linear (constant pace)</option><option value="smooth" selected>Smooth (slow start and end)</option><option value="in">Ease in (starts slow)</option><option value="out">Ease out (ends slow)</option><option value="dramatic">Dramatic (long pause, fast middle)</option><option value="speed">Real speed (follows your pace, stops skipped)</option></select></label>
       <label class="chk" for="x-graph"><input id="x-graph" type="checkbox" checked> Show elevation graph</label>
       <label for="x-size">Size
         <select id="x-size"><option value="1080x1920" selected>1080 x 1920 (9:16)</option><option value="720x1280">720 x 1280 (9:16)</option></select></label>
@@ -1203,6 +1203,18 @@ var EASE={
   out:function(x){return 1-Math.pow(1-x,3)},
   dramatic:function(x){return x<.5?16*Math.pow(x,5):1-Math.pow(-2*x+2,5)/2}
 };
+// 'Real speed': animation time maps linearly onto moving time, so the dot runs fast where the rider was fast
+// and slow on climbs. Returns the fraction of distance reached at moving-time fraction x.
+function speedMap(P){
+  var S=P.S,n=S.length,T=S[n-1].mv-S[0].mv;
+  if(!(T>1))return null;
+  return function(x){
+    var tg=S[0].mv+Math.max(0,Math.min(1,x))*T,lo=0,hi=n-1;
+    while(hi-lo>1){var m=(lo+hi)>>1;if(S[m].mv<tg)lo=m;else hi=m}
+    var d=S[hi].mv-S[lo].mv,f=d>0?(tg-S[lo].mv)/d:0;
+    return (lo+Math.max(0,Math.min(1,f)))/(n-1);
+  };
+}
 function durVal(){var v=parseFloat($('x-dur').value);return isFinite(v)?Math.max(1,Math.min(600,v)):8}
 function opts(){var sz=$('x-size').value.split('x');return {W:+sz[0],H:+sz[1],pos:$('x-pos').value,dur:durVal(),col:$('x-col').value,ease:$('x-ease').value,graph:$('x-graph').checked}}
 function setStatus(t){$('x-status').textContent=t}
@@ -1215,6 +1227,44 @@ function resetOutput(){
   $('xvid').hidden=true;$('xvid').removeAttribute('src');$('x-dl').hidden=true;cv.hidden=false;
 }
 function stopRun(){if(X.raf)cancelAnimationFrame(X.raf);X.raf=0;X.running=false;$('x-prev').disabled=false;$('x-rec').disabled=!CAN_SAVE}
+// Insert (or overwrite) the Duration element in a MediaRecorder WebM. Only the first few KB are read.
+function fixWebmDuration(blob,ms){
+  return blob.slice(0,8192).arrayBuffer().then(function(buf){
+    var d=new Uint8Array(buf),pos=0;
+    function vint(keep){var b=d[pos],len=1;while(len<=8&&!(b&(0x80>>(len-1))))len++;
+      if(len>8)throw 0;var v=keep?b:(b&(0xFF>>len));for(var i=1;i<len;i++)v=v*256+d[pos+i];var st=pos;pos+=len;return {v:v,len:len,start:st,unk:!keep&&v===Math.pow(2,7*len)-1}}
+    var id=vint(true),sz=vint(false);pos+=sz.v;                  // EBML header
+    var seg=vint(true);if(seg.v!==0x18538067)throw 0;var segSize=vint(false),end;
+    while(true){
+      var el=vint(true),es=vint(false);
+      if(el.v===0x1549A966){                                      // Info
+        var dataStart=pos,dataEnd=pos+es.v,scale=1e6,hasDur=false,q=dataStart;
+        pos=dataStart;
+        while(pos<dataEnd){var cid=vint(true),cs=vint(false);
+          if(cid.v===0x2AD7B1){scale=0;for(var i=0;i<cs.v;i++)scale=scale*256+d[pos+i]}
+          if(cid.v===0x4489)hasDur=true;
+          pos+=cs.v}
+        var dur=new Uint8Array(11);dur[0]=0x44;dur[1]=0x89;dur[2]=0x88;
+        new DataView(dur.buffer).setFloat64(3,ms*1e6/scale);
+        var info=new Uint8Array(d.subarray(dataStart,dataEnd));
+        if(hasDur){ // strip the old Duration then append ours
+          var keepB=[],r=0;pos=dataStart;
+          while(pos<dataEnd){var s0=pos,c1=vint(true),c2=vint(false);pos+=c2.v;if(c1.v!==0x4489)for(var z=s0;z<pos;z++)keepB.push(d[z])}
+          info=new Uint8Array(keepB)}
+        var ni=new Uint8Array(info.length+11);ni.set(info);ni.set(dur,info.length);
+        var sz8=new Uint8Array(8);sz8[0]=1;var L=ni.length;for(var k=7;k>=1;k--){sz8[k]=L%256;L=Math.floor(L/256)}
+        var head=[d.subarray(0,el.start+el.len)];
+        // segment size: leave an unknown size as is, otherwise grow it by what we added
+        var out;
+        if(!segSize.unk){var ns=new Uint8Array(8);ns[0]=1;var t=segSize.v+(ni.length-es.v)+(8-es.len),m=t;for(var k2=7;k2>=1;k2--){ns[k2]=m%256;m=Math.floor(m/256)}
+          out=[d.subarray(0,segSize.start),ns,d.subarray(segSize.start+segSize.len,el.start+el.len),sz8,ni]}
+        else out=[d.subarray(0,el.start+el.len),sz8,ni];
+        return new Blob(out.concat([blob.slice(dataEnd)]),{type:blob.type});
+      }
+      if(es.unk)throw 0;pos+=es.v;if(pos>d.length-16)throw 0;
+    }
+  });
+}
 function pickMime(){
   var list=['video/mp4;codecs=avc1.640028','video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
   for(var i=0;i<list.length;i++)if(MediaRecorder.isTypeSupported(list[i]))return list[i];
@@ -1223,7 +1273,8 @@ function pickMime(){
 function run(record){
   if(X.running||!X.a)return;
   resetOutput();layout();
-  var o=opts(),P=X.P,hold=1.5,rec=null,chunks=[],mime='';
+  var o=opts(),P=X.P,hold=1.5,rec=null,chunks=[],mime='',ease=EASE[o.ease]||EASE.linear,recT0=0;
+  if(o.ease==='speed'){var sm=speedMap(P);if(sm)ease=sm;else{ease=EASE.linear;setStatus('This ride has no usable timestamps, so linear is used.')}}
   X.running=true;$('x-prev').disabled=true;$('x-rec').disabled=true;
   if(record){
     mime=pickMime();
@@ -1231,19 +1282,23 @@ function run(record){
     catch(e){setStatus('This browser could not start recording.');stopRun();return}
     rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
     rec.onstop=function(){
-      var type=rec.mimeType||mime||'video/webm',ext=/mp4/.test(type)?'mp4':'webm',blob=new Blob(chunks,{type:type});
+      var type=rec.mimeType||mime||'video/webm',ext=/mp4/.test(type)?'mp4':'webm',blob=new Blob(chunks,{type:type}),secs=(performance.now()-recT0)/1000;
+      var fin=function(blob){
       X.url=URL.createObjectURL(blob);
       var v=$('xvid');v.src=X.url;v.hidden=false;cv.hidden=true;
       var a=$('x-dl');a.href=X.url;a.download='trail-heat-'+X.a.name.replace(/\.gpx$/i,'').replace(/[^\w-]+/g,'_')+'.'+ext;a.hidden=false;
-      setStatus('Done: '+o.W+' x '+o.H+' '+ext.toUpperCase()+', '+(blob.size/1048576).toFixed(1)+' MB.');stopRun();
+      setStatus('Done: '+o.W+' x '+o.H+' '+ext.toUpperCase()+', '+secs.toFixed(1)+' s, '+(blob.size/1048576).toFixed(1)+' MB.');stopRun();
+      };
+      // Chrome writes WebM with no length in the header, so players guess it (often far too short). Write the real one in.
+      if(ext==='webm')fixWebmDuration(blob,secs*1000).then(fin,function(){fin(blob)});else fin(blob);
     };
-    drawFrame(P,0,o.col);rec.start(250);
+    drawFrame(P,0,o.col);recT0=performance.now();rec.start(250);
   }
   var t0=performance.now();
   (function step(){
     try{
       var t=(performance.now()-t0)/1000; // own clock, independent of the frame timestamp
-      drawFrame(P,(EASE[o.ease]||EASE.linear)(Math.max(0,Math.min(1,t/o.dur))),o.col);
+      drawFrame(P,ease(Math.max(0,Math.min(1,t/o.dur))),o.col);
       if(t<o.dur+hold){setStatus((record?'Recording ':'Previewing ')+Math.max(0,Math.min(100,Math.round(t/(o.dur+hold)*100)))+'%');X.raf=requestAnimationFrame(step)}
       else{
         drawFrame(P,1,o.col);
