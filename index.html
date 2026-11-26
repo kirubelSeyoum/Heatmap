@@ -112,8 +112,8 @@ tr.sel td{background:color-mix(in srgb,var(--accent) 18%,transparent)}
 .modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:16px}
 .modal.on{display:flex}
 .mpanel{background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:10px;padding:16px;max-width:760px;width:100%;max-height:100%;overflow:auto;display:flex;gap:20px;flex-wrap:wrap}
-.mpre{flex:0 0 auto;background:#000;border-radius:8px;overflow:hidden;width:270px;height:480px;max-width:100%}
-.mpre canvas,.mpre video{position:static;inset:auto;width:270px;height:480px;max-width:100%;display:block;cursor:default;touch-action:auto;object-fit:contain;background:#000}
+.mpre{flex:0 0 auto;background:#000;border-radius:8px;overflow:hidden;width:min(320px,calc(480px*var(--arn,.5625)));height:auto;aspect-ratio:var(--ar,9/16);max-width:100%}
+.mpre canvas,.mpre video{position:static;inset:auto;width:100%;height:100%;max-width:100%;display:block;cursor:default;touch-action:auto;object-fit:contain;background:#000}
 .mopts{flex:1 1 240px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .mopts label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink2)}
 .mopts select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:6px;padding:6px}
@@ -169,7 +169,7 @@ body{padding-block:max(20px,env(safe-area-inset-top)) max(40px,env(safe-area-ins
   .seghead input{width:100%}
   .modal{padding:8px;align-items:flex-start}
   .mpanel{padding:12px;gap:12px}
-  .mpre{width:min(270px,100%);height:auto;aspect-ratio:9/16;margin:0 auto}
+  .mpre{width:min(270px,100%);height:auto;aspect-ratio:var(--ar,9/16);margin:0 auto}
   .mpre canvas,.mpre video{width:100%;height:100%}
 }
 @media (max-height:500px) and (orientation:landscape){
@@ -180,19 +180,26 @@ body{padding-block:max(20px,env(safe-area-inset-top)) max(40px,env(safe-area-ins
   .wrap{gap:10px}
 }
 @media (pointer:coarse){#dropmsg{display:none}}
-.mleft{flex:0 0 270px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.mleft{flex:0 0 auto;min-width:270px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .mact{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mact button:disabled{opacity:.5;cursor:not-allowed}
 .mact #x-status{flex-basis:100%;min-height:1.4em;font-size:13px}
 .mact #x-dl{flex-basis:100%;text-align:center}
 body.modalopen{overflow:hidden}
+.xgrp{display:flex;flex-direction:column;gap:10px}
+.mopts.all .only-single{display:none}
+.xstats{border:1px solid var(--border);border-radius:6px;margin:0;padding:6px 10px;min-width:0}
+.xstats legend{font-size:12px;color:var(--ink2);padding:0 4px}
+.xstats label.chk{padding:3px 0}
+.xstats label.chk[hidden]{display:none}
 /* export dialog on phones: preview and its buttons stay pinned at the top, only the settings scroll */
 @media (max-width:640px){
   .modal{padding:0;align-items:stretch}
   .mpanel{flex-direction:column;flex-wrap:nowrap;gap:8px;border-radius:0;border:0;max-width:none;height:100%;max-height:none;overflow:hidden;
     padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
   .mleft{flex:0 0 auto;width:100%;align-items:center}
-  .mpre{height:min(38dvh,360px);width:auto;aspect-ratio:9/16;margin:0 auto}
+  .mleft{min-width:0}
+  .mpre{width:min(100%,calc(min(38dvh,360px)*var(--arn,.5625)));height:auto;aspect-ratio:var(--ar,9/16);margin:0 auto}
   .mact{width:100%;justify-content:center}
   .mact #x-status{text-align:center}
   .mopts{flex:1 1 auto;min-height:0;overflow:auto;padding-bottom:14px;overscroll-behavior:contain}
@@ -201,9 +208,15 @@ body.modalopen{overflow:hidden}
   .modal{padding:0}
   .mpanel{height:100%;max-height:none;border-radius:0;flex-wrap:nowrap;overflow:hidden}
   .mleft{flex:0 0 auto;width:auto}
-  .mpre{height:calc(100dvh - 120px);min-height:150px;width:auto;aspect-ratio:9/16}
+  .mpre{width:min(52vw,calc((100dvh - 120px)*var(--arn,.5625)));height:auto;aspect-ratio:var(--ar,9/16)}
   .mopts{overflow:auto;min-height:0}
 }
+
+.dcol{margin-top:10px;display:grid;gap:4px}
+.dcol select{width:100%}
+.lgbar{height:8px;border-radius:4px;margin-top:2px}
+.lgend{display:flex;justify-content:space-between;font-size:11px;color:var(--ink2)}
+.dnote{font-size:11px;color:var(--ink2);margin:6px 0 0}
 </style>
 </head><body>
 <div class="wrap">
@@ -240,10 +253,13 @@ body.modalopen{overflow:hidden}
       <input id="s-w" type="range" min="0.5" max="3" step="0.1">
       <div id="dimrow"><label for="s-dim"><span>Overlay opacity</span><span id="v-dim"></span></label>
       <input id="s-dim" type="range" min="0" max="95" step="1"></div>
+      <label for="s-mass"><span>Rider + bike weight (kg)</span><span id="v-mass"></span></label>
+      <input id="s-mass" type="number" min="30" max="250" step="1" inputmode="decimal">
+      <div class="sub" style="font-size:11px;margin:2px 0 0">Used only to estimate power for rides without a power meter.</div>
       <div class="row" style="display:flex;gap:6px;margin-top:12px"><button id="s-reset" type="button">Reset</button><button id="s-close" type="button">Close</button></div>
     </div>
     <div class="panel detail" id="detail" aria-live="polite"></div>
-    <div class="animbar"><button id="play" type="button">Play animation</button><span id="anim"><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Animation position"><span id="adate"></span></span></div>
+    <div class="animbar"><button id="play" type="button">Play animation</button><button id="anim-export" type="button">Export video</button><span id="anim"><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Animation position"><span id="adate"></span></span></div>
     <div class="mapctl"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">&minus;</button><button id="fit" aria-label="Fit all tracks">Fit</button><button id="basemap" aria-label="Toggle street map">Map: Dark</button><button id="fs" aria-label="Full screen map">Full screen</button><button id="cfg" aria-label="Adjust heat map">Adjust</button><button id="segbtn" aria-label="Create a segment">+ Segment</button></div>
     <div class="maplabel"><span>Less traveled</span><span class="ramp"></span><span>More traveled</span><span id="maptag"></span><span id="credit"></span></div>
   </div>
@@ -268,20 +284,34 @@ body.modalopen{overflow:hidden}
         <a id="x-dl" class="btn primary" hidden>Download video</a>
       </div>
     </div>
-    <div class="mopts">
-      <h2 style="margin:0;font-size:16px">Export route video</h2>
+    <div class="mopts" id="mopts">
+      <h2 style="margin:0;font-size:16px" id="x-title">Export route video</h2>
       <div id="xname" style="color:var(--ink2)"></div>
-      <label for="x-dur">Animation length (seconds)
-        <input id="x-dur" type="number" min="1" max="600" step="any" value="8" inputmode="decimal"></label>
-      <label for="x-ease">Easing
-        <select id="x-ease"><option value="linear">Linear (constant pace)</option><option value="smooth" selected>Smooth (slow start and end)</option><option value="in">Ease in (starts slow)</option><option value="out">Ease out (ends slow)</option><option value="dramatic">Dramatic (long pause, fast middle)</option><option value="speed">Real speed (follows your pace, stops skipped)</option></select></label>
-      <label class="chk" for="x-graph"><input id="x-graph" type="checkbox" checked> Show elevation graph</label>
-      <label for="x-size">Size
-        <select id="x-size"><option value="1080x1920" selected>1080 x 1920 (9:16)</option><option value="720x1280">720 x 1280 (9:16)</option></select></label>
-      <label for="x-pos">Stats position
-        <select id="x-pos"><option value="bottom" selected>Bottom</option><option value="top">Top</option></select></label>
-      <label for="x-col">Route colour
-        <input id="x-col" type="color" value="#ffb347"></label>
+      <div class="xgrp">
+        <label for="x-bg">Background
+          <select id="x-bg"><option value="black" selected>Black (overlay on your own footage)</option><option value="map0" class="needmap">Map: dark</option><option value="map1" class="needmap">Map: streets</option></select></label>
+        <label for="x-dim" id="x-dimrow" hidden><span>Map dimming <b id="v-xdim"></b></span><input id="x-dim" type="range" min="0" max="90" step="1" value="40"></label>
+      </div>
+      <div class="xgrp only-single">
+        <label for="x-look">Look
+          <select id="x-look"><option value="neon" selected>Neon glow</option><option value="clean">Clean thin line</option></select></label>
+        <label for="x-colby">Colour the route by
+          <select id="x-colby"><option value="solid" selected>Solid colour</option></select></label>
+        <label for="x-col" id="x-colrow">Route colour
+          <input id="x-col" type="color" value="#ffb347"></label>
+        <fieldset class="xstats"><legend>Stats shown (up to 4)</legend><div id="x-stats"></div></fieldset>
+        <label class="chk" for="x-graph"><input id="x-graph" type="checkbox" checked> Show elevation graph</label>
+      </div>
+      <div class="xgrp">
+        <label for="x-dur">Animation length (seconds)
+          <input id="x-dur" type="number" min="1" max="600" step="any" value="8" inputmode="decimal"></label>
+        <label for="x-ease">Easing
+          <select id="x-ease"><option value="linear">Linear (constant pace)</option><option value="smooth" selected>Smooth (slow start and end)</option><option value="in">Ease in (starts slow)</option><option value="out">Ease out (ends slow)</option><option value="dramatic">Dramatic (long pause, fast middle)</option><option value="speed" class="only-single">Real speed (follows your pace, stops skipped)</option></select></label>
+        <label for="x-size">Size
+          <select id="x-size"><option value="1080x1920" selected>Vertical 9:16 (1080 x 1920)</option><option value="720x1280">Vertical 9:16 small (720 x 1280)</option><option value="1080x1350">Portrait 4:5 (1080 x 1350)</option><option value="1080x1080">Square 1:1 (1080 x 1080)</option><option value="1920x1080">Landscape 16:9 (1920 x 1080)</option></select></label>
+        <label for="x-pos">Stats position
+          <select id="x-pos"><option value="bottom" selected>Bottom</option><option value="top">Top</option></select></label>
+      </div>
       <p id="x-note" style="margin:0;color:var(--ink2);font-size:12px"></p>
     </div>
   </div>
@@ -343,7 +373,122 @@ function maxSpeed(a){
   }
   return best;
 }
-// a: {name,pts[],ts[],ele[]} aligned arrays, null in pts marks a segment break
+
+// ---------- sensors, kinematics and estimated power ----------
+function smooth(arr,w){ // NaN-aware moving average over +-w neighbours
+  var n=arr.length,out=new Array(n);
+  for(var i=0;i<n;i++){
+    if(arr[i]!==arr[i]){out[i]=NaN;continue}
+    var s=0,c=0;for(var k=Math.max(0,i-w);k<=Math.min(n-1,i+w);k++){var v=arr[k];if(v===v){s+=v;c++}}
+    out[i]=c?s/c:NaN}
+  return out}
+function sensorStats(a){
+  var n=a.pts.length,hs=0,hc=0,hm=0,cs=0,cc=0,ps=0,pc=0,i;
+  for(i=0;i<n;i++){
+    var h=a.hr[i],c=a.cad[i],p=a.pw[i];
+    if(h===h){hs+=h;hc++;if(h>hm)hm=h}
+    if(c===c&&c>0){cs+=c;cc++}
+    if(p===p){ps+=p;pc++}}
+  a.hasHr=hc>=5;a.avgHr=hc?hs/hc:0;a.maxHr=hm;
+  a.hasCad=cc>=5;a.avgCad=cc?cs/cc:0;
+  a.hasPw=pc>=5;a.avgPw=pc?ps/pc:0;
+  var sp=smooth(a.pw,2),mp=0;for(i=0;i<n;i++)if(sp[i]===sp[i]&&sp[i]>mp)mp=sp[i];a.maxPw=mp}
+// speed (m/s over about 6 s) and slope (fraction over about 60 m of smoothed elevation), per track point
+function kin(a){
+  if(a._kin)return a._kin;
+  var n=a.pts.length,v=new Array(n),g=new Array(n),i;
+  for(i=0;i<n;i++){v[i]=NaN;g[i]=NaN}
+  var idx=[];for(i=0;i<n;i++)if(a.pts[i])idx.push(i);
+  var m=idx.length,j0=0,j1=0,k;
+  for(k=0;k<m;k++){
+    var i0=idx[k],t0=a.ts[i0];
+    if(t0!==t0)continue;
+    while(j0<k&&(a.ts[idx[k]]-a.ts[idx[j0]])>3000)j0++;
+    if(j1<k)j1=k;
+    while(j1<m-1&&(a.ts[idx[j1]]-t0)<3000)j1++;
+    var ia=idx[j0],ib=idx[j1],dt=(a.ts[ib]-a.ts[ia])/1000;
+    if(dt>=2&&dt<40){var vv=(a.cum[ib]-a.cum[ia])*1000/dt;v[i0]=vv<=25?vv:NaN}
+  }
+  // elevation: forward fill, smooth, then slope across +-30 m
+  var E=new Array(m),last=NaN;
+  for(k=0;k<m;k++){var e=a.ele[idx[k]];if(e===e)last=e;E[k]=last}
+  var Es=smooth(E,3),lo=0,hi=0;
+  for(k=0;k<m;k++){
+    var d=a.cum[idx[k]];
+    while(lo<k&&a.cum[idx[lo]]<d-.03)lo++;
+    if(hi<k)hi=k;
+    while(hi<m-1&&a.cum[idx[hi+1]]<=d+.03)hi++;
+    var dd=(a.cum[idx[hi]]-a.cum[idx[lo]])*1000;
+    if(dd>=20&&Es[hi]===Es[hi]&&Es[lo]===Es[lo])g[idx[k]]=Math.max(-.25,Math.min(.25,(Es[hi]-Es[lo])/dd));
+  }
+  return (a._kin={v:v,g:g,idx:idx});
+}
+var RIDER={mass:85,cda:.32,crr:.005,rho:1.2,eff:.97};
+try{var rs=JSON.parse(localStorage.getItem('trailheat-rider')||'null');if(rs&&rs.mass>20&&rs.mass<300)RIDER.mass=rs.mass}catch(e){}
+function setMass(m){RIDER.mass=m;try{localStorage.setItem('trailheat-rider',JSON.stringify({mass:m}))}catch(e){}}
+// Estimated power from the physics of riding: gravity + rolling + air drag + acceleration, no wind. Roughly +-15-20%.
+function estPower(a){
+  if(a._est&&a._estM===RIDER.mass)return a._est;
+  var K=kin(a),n=a.pts.length,out=new Array(n),i;
+  for(i=0;i<n;i++)out[i]=NaN;
+  var idx=K.idx,m=idx.length,mass=RIDER.mass,g=9.81;
+  for(var k=0;k<m;k++){
+    var i0=idx[k],v=K.v[i0];
+    if(v!==v)continue;
+    if(v<0.8){out[i0]=0;continue}
+    var k0=Math.max(0,k-2),k1=Math.min(m-1,k+2),v0=K.v[idx[k0]],v1=K.v[idx[k1]],dt=(a.ts[idx[k1]]-a.ts[idx[k0]])/1000,acc=0;
+    if(v0===v0&&v1===v1&&dt>0)acc=Math.max(-2,Math.min(2,(v1-v0)/dt));
+    var sl=K.g[i0];if(sl!==sl)sl=0;
+    var th=Math.atan(sl),P=(mass*g*(RIDER.crr*Math.cos(th)+Math.sin(th))*v+.5*RIDER.rho*RIDER.cda*v*v*v+mass*acc*v)/RIDER.eff;
+    out[i0]=Math.max(0,Math.min(1500,P));
+  }
+  out=smooth(out,2);
+  a._est=out;a._estM=RIDER.mass;
+  var ps=0,pc=0,mx=0;for(i=0;i<n;i++)if(out[i]===out[i]){ps+=out[i];pc++;if(out[i]>mx)mx=out[i]}
+  a.estAvgPw=pc?ps/pc:0;a.estMaxPw=mx;
+  return out;
+}
+// per-point values for colouring the route and charting: {vals,lo,hi,label,unit,div,est}; null when unavailable
+var TRACKS=[['speed','Speed'],['grade','Gradient'],['hr','Heart rate'],['cad','Cadence'],['power','Power']];
+function pct(vals,p){var f=vals.filter(function(x){return x===x}).sort(function(x,y){return x-y});return f.length?f[Math.min(f.length-1,Math.floor(p*(f.length-1)))]:NaN}
+function trackOf(a,mode){
+  var vals,label,unit,div=false,est=false,K;
+  if(mode==='speed'){K=kin(a);vals=K.v.map(function(v){return v===v?v*3.6:NaN});vals=smooth(vals,2);label='Speed';unit='km/h'}
+  else if(mode==='grade'){K=kin(a);vals=K.g.map(function(v){return v===v?v*100:NaN});vals=smooth(vals,2);label='Gradient';unit='%';div=true}
+  else if(mode==='hr'){if(!a.hasHr)return null;vals=smooth(a.hr,2);label='Heart rate';unit='bpm'}
+  else if(mode==='cad'){if(!a.hasCad)return null;vals=smooth(a.cad,2);label='Cadence';unit='rpm'}
+  else if(mode==='power'){
+    if(a.hasPw){vals=smooth(a.pw,2)}else{vals=estPower(a);est=true}
+    if(!est)vals=vals.slice();label=est?'Power (est.)':'Power';unit='W'}
+  else return null;
+  var lo,hi;
+  if(div){var m=Math.max(4,Math.min(15,Math.max(Math.abs(pct(vals,.05)),Math.abs(pct(vals,.95)))||4));lo=-m;hi=m}
+  else{lo=pct(vals,.05);hi=pct(vals,.95);if(mode==='power'||mode==='cad')lo=Math.min(lo,0)}
+  if(!(hi>lo)){if(!isFinite(lo))return null;hi=lo+1}
+  return {vals:vals,lo:lo,hi:hi,label:label,unit:unit,div:div,est:est,mode:mode};
+}
+// ---------- saved rides (IndexedDB, this browser only) ----------
+var DBN='trailheat',STN='rides';
+function openDb(){return new Promise(function(res,rej){
+  if(!window.indexedDB)return rej(new Error('no idb'));
+  var r=indexedDB.open(DBN,1);
+  r.onupgradeneeded=function(){r.result.createObjectStore(STN,{keyPath:'key'})};
+  r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)};r.onblocked=function(){rej(new Error('blocked'))}})}
+function saveRides(list){
+  return openDb().then(function(db){return new Promise(function(res,rej){
+    var tx=db.transaction(STN,'readwrite'),st=tx.objectStore(STN);
+    list.forEach(function(a){if(a.example)return;st.put({key:keyOf(a),name:a.name,pts:a.pts,ts:a.ts,ele:a.ele,hr:a.hr,cad:a.cad,pw:a.pw})});
+    tx.oncomplete=function(){db.close();res(true)};tx.onerror=tx.onabort=function(){db.close();rej(tx.error)}})}).catch(function(){return false})}
+function loadSaved(){
+  var work=openDb().then(function(db){return new Promise(function(res,rej){
+    var rq=db.transaction(STN,'readonly').objectStore(STN).getAll();
+    rq.onsuccess=function(){db.close();
+      var out=[];rq.result.forEach(function(r){try{out.push(finalize({name:r.name,pts:r.pts,ts:r.ts,ele:r.ele,hr:r.hr,cad:r.cad,pw:r.pw}))}catch(e){}});res(out)};
+    rq.onerror=function(){db.close();rej(rq.error)}})}).catch(function(){return []});
+  return Promise.race([work,new Promise(function(r){setTimeout(function(){r([])},5000)})])}
+function wipeSaved(){return openDb().then(function(db){return new Promise(function(res){
+  var tx=db.transaction(STN,'readwrite');tx.objectStore(STN).clear();tx.oncomplete=function(){db.close();res(true)};tx.onerror=function(){db.close();res(false)}})}).catch(function(){return false})}
+// a: {name,pts[],ts[],ele[],hr[],cad[],pw[]} aligned arrays, null in pts marks a segment break
 function finalize(a){
   var n=a.pts.length,cum=new Array(n),d=0,prev=null,mov=0,prevT=NaN,t0=NaN,t1=NaN,eles=[],gain=0;
   for(var i=0;i<n;i++){
@@ -365,6 +510,8 @@ function finalize(a){
   a.start=t0===t0?new Date(t0):null;
   a.best=bestEfforts(a);
   a.maxSpeed=maxSpeed(a);
+  if(!a.hr){a.hr=[];a.cad=[];a.pw=[];for(var z=0;z<n;z++){a.hr.push(NaN);a.cad.push(NaN);a.pw.push(NaN)}}
+  sensorStats(a);
   return a;
 }
 function parseGpx(text,name){
@@ -372,7 +519,7 @@ function parseGpx(text,name){
   if(doc.getElementsByTagName('parsererror').length) throw new Error('not valid XML');
   var segs=[].slice.call(doc.getElementsByTagName('trkseg'));
   if(!segs.length) segs=[].slice.call(doc.getElementsByTagName('rte'));
-  var pts=[],ts=[],ele=[],real=0;
+  var pts=[],ts=[],ele=[],hr=[],cad=[],pw=[],real=0,hasExt=/<(?:\w+:)?(?:hr|heartrate|cad|cadence|power|watts|powerinwatts)\s*>/i.test(text);
   segs.forEach(function(seg){
     var els=seg.getElementsByTagName('trkpt'); if(!els.length) els=seg.getElementsByTagName('rtept');
     for(var i=0;i<els.length;i++){
@@ -383,11 +530,18 @@ function parseGpx(text,name){
       ts.push(isFinite(t)?t:NaN);
       var ee=e.getElementsByTagName('ele')[0],el=ee?parseFloat(ee.textContent):NaN;
       ele.push(isFinite(el)?el:NaN);
+      var h1=NaN,c1=NaN,p1=NaN;
+      if(hasExt){var ex=e.getElementsByTagName('extensions')[0];
+        if(ex){var ch=ex.getElementsByTagName('*');
+          for(var q=0;q<ch.length;q++){var ln=(ch[q].localName||'').toLowerCase(),v=parseFloat(ch[q].textContent);if(!isFinite(v))continue;
+            if(ln==='hr'||ln==='heartrate')h1=v;else if(ln==='cad'||ln==='cadence')c1=v;
+            else if(ln==='power'||ln==='watts'||ln==='powerinwatts')p1=v}}}
+      hr.push(h1>=30&&h1<=230?h1:NaN);cad.push(c1>=0&&c1<=250?c1:NaN);pw.push(p1>=0&&p1<=2500?p1:NaN);
     }
-    pts.push(null);ts.push(NaN);ele.push(NaN);
+    pts.push(null);ts.push(NaN);ele.push(NaN);hr.push(NaN);cad.push(NaN);pw.push(NaN);
   });
   if(real<2) throw new Error('no track points');
-  return finalize({name:name,pts:pts,ts:ts,ele:ele});
+  return finalize({name:name,pts:pts,ts:ts,ele:ele,hr:hr,cad:cad,pw:pw});
 }
 function keyOf(a){return a.name+'|'+Math.round(a.dist*100)+'|'+(a.start?+a.start:0)}
 function readFiles(list){
@@ -404,9 +558,12 @@ function readFiles(list){
   function done(){ if(--left) return;
     acts=acts.filter(function(a){return !a.example});
     var seen={};acts.forEach(function(a){seen[keyOf(a)]=1});
-    fresh.forEach(function(a){var k=keyOf(a);if(seen[k]){dup++}else{seen[k]=1;acts.push(a);ok++}});
-    msg('Added '+ok+' ride'+(ok===1?'':'s')+(dup?', skipped '+dup+' duplicate'+(dup===1?'':'s'):'')+(bad.length?'. Could not read: '+bad.join(', '):'.'));
-    window.__refresh(true)}
+    var addedList=[];
+    fresh.forEach(function(a){var k=keyOf(a);if(seen[k]){dup++}else{seen[k]=1;acts.push(a);addedList.push(a);ok++}});
+    var base='Added '+ok+' ride'+(ok===1?'':'s')+(dup?', skipped '+dup+' duplicate'+(dup===1?'':'s'):'')+(bad.length?'. Could not read: '+bad.join(', '):'.');
+    msg(base);window.__refresh(true);
+    if(ok)saveRides(addedList).then(function(good){if(good)msg(base+(bad.length?'':' ')+' Saved on this device.');
+      try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}})}
 }
 function msg(t){$('msg').textContent=t}
 // Example data: synthetic out-and-back rides around Nairobi with stops, clearly labelled as examples.
@@ -428,20 +585,29 @@ function makeSample(){
       if(k%25===0&&k>0&&R()<.35){t+=(60+R()*180)*1000;pts.push([p[0],p[1]]);ts.push(t);ele.push(ele[ele.length-1])}
     }
     pts.push(null);ts.push(NaN);ele.push(NaN);
-    var a=finalize({name:'Example ride '+(i+1),pts:pts,ts:ts,ele:ele,example:true});
+    var nn=pts.length,hr=[],cad=[],pw=[];
+    for(var z=0;z<nn;z++){hr.push(pts[z]?125+45*Math.sin(z/40+i)+(R()-.5)*6:NaN);cad.push(pts[z]?80+10*Math.sin(z/25)+(R()-.5)*8:NaN);pw.push(NaN)}
+    var a=finalize({name:'Example ride '+(i+1),pts:pts,ts:ts,ele:ele,hr:hr,cad:cad,pw:pw,example:true});
     out.push(a);
   }
   return out;
 }
-window.__T={acts:function(){return acts},set:function(a){acts=a},readFiles:readFiles,msg:msg,makeSample:makeSample,$:$,BEST:BEST};
+window.__T={acts:function(){return acts},set:function(a){acts=a},readFiles:readFiles,msg:msg,makeSample:makeSample,$:$,BEST:BEST,
+  loadSaved:loadSaved,wipeSaved:wipeSaved,trackOf:trackOf,TRACKS:TRACKS,estPower:estPower,kin:kin,smooth:smooth,rider:RIDER,setMass:setMass};
 })();
 </script>
 <script>
 (function(){
 var T=window.__T,$=T.$,cv=$('cv'),ctx=cv.getContext('2d'),box=$('mapbox');
-var acc=document.createElement('canvas'),actx=acc.getContext('2d',{willReadFrequently:true}),tmpc=document.createElement('canvas');
-var view={cx:.5,cy:.5,S:4000},W=0,H=0,dpr=1,raf=0,lut=null,anim=null,lastMax=1,order=[],rank=[],starts=[];
-var sel=-1,overlay=null,showMap=false,drawTiles=null,world=[],hs=1,outImg=null;
+function mkLayer(){var a=document.createElement('canvas'),t=document.createElement('canvas');
+  return {acc:a,actx:a.getContext('2d',{willReadFrequently:true}),tmp:t,tctx:t.getContext('2d'),img:null,hs:1,max:1}}
+function sizeLayer(L,pw,ph,budget){
+  L.hs=Math.min(1,Math.sqrt(budget/Math.max(1,pw*ph)));
+  L.acc.width=L.tmp.width=Math.max(1,Math.round(pw*L.hs));L.acc.height=L.tmp.height=Math.max(1,Math.round(ph*L.hs));
+  L.img=L.tctx.createImageData(L.acc.width,L.acc.height)}
+var LM=mkLayer(),track=null,trackLut=null;
+var view={cx:.5,cy:.5,S:4000},W=0,H=0,dpr=1,raf=0,lut=null,anim=null,order=[],rank=[],starts=[];
+var sel=-1,overlay=null,showMap=false,drawTiles=null,world=[];
 var PAL={
  Fire:{hi:'#3fd5ff',r:[[0,[20,22,26,0]],[.12,[90,30,10,150]],[.4,[217,87,31,230]],[.7,[255,179,71,255]],[1,[255,246,216,255]]]},
  Ice:{hi:'#ff6ab0',r:[[0,[20,22,26,0]],[.12,[10,40,90,150]],[.4,[40,140,230,230]],[.7,[120,220,255,255]],[1,[240,252,255,255]]]},
@@ -487,12 +653,7 @@ function makeLut(){
   if(ramp)ramp.style.background='linear-gradient(90deg,'+stops.map(function(s){return 'rgb('+s[1][0]+','+s[1][1]+','+s[1][2]+')'}).join(',')+')';
 }
 // heat layer resolution: finer when still, coarser while the animation plays
-function applyHeatRes(){
-  var pw=cv.width,ph=cv.height,budget=anim?1.1e6:2.2e6;
-  hs=Math.min(1,Math.sqrt(budget/Math.max(1,pw*ph)));
-  acc.width=tmpc.width=Math.max(1,Math.round(pw*hs));acc.height=tmpc.height=Math.max(1,Math.round(ph*hs));
-  outImg=tmpc.getContext('2d').createImageData(acc.width,acc.height);
-}
+function applyHeatRes(){sizeLayer(LM,cv.width,cv.height,anim?1.1e6:2.2e6)}
 function resize(){
   W=box.clientWidth;H=box.clientHeight;
   // cap the main canvas at ~9 MP and build the (soft) heat layer at no more than ~2.2 MP, then scale it up
@@ -507,57 +668,94 @@ function tracePath(c,o,k,ox,oy){
   for(var i=0;i<o.length;i+=2){var x=o[i];if(x!==x){pen=false;continue}
     var sx=x*k+ox,sy=o[i+1]*k+oy;if(!pen){c.moveTo(sx,sy);pen=true}else c.lineTo(sx,sy)}
 }
-function draw(){
-  raf=0;
-  var w=cv.width,h=cv.height,aw=acc.width,ah=acc.height;
-  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=S.bg;ctx.fillRect(0,0,w,h);
-  if(drawTiles&&showMap)drawTiles(w,h);
-  $('empty').style.display=world.length?'none':'grid';
-  if(!world.length||!w)return;
+// Paints the heat layer onto c. t=null draws every ride; otherwise the date-ordered animation at fraction t.
+// Used for the screen and for video export (own canvas, own layer). o.measure only records the intensity ceiling.
+function paint(c,w,h,k,ox,oy,dp,t,L,o){
+  var aw=L.acc.width,ah=L.acc.height,hs=L.hs,actx=L.actx,A=T.acts();
   actx.setTransform(1,0,0,1,0,0);actx.globalCompositeOperation='source-over';
   actx.fillStyle='#000';actx.fillRect(0,0,aw,ah);
   actx.globalCompositeOperation='lighter';
-  var k=view.S*dpr,ox=w/2-view.cx*k,oy=h/2-view.cy*k,kh=k*hs,oxh=aw/2-view.cx*kh,oyh=ah/2-view.cy*kh;
+  var kh=k*hs,oxh=ox*hs,oyh=oy*hs;
   actx.lineCap='round';actx.lineJoin='round';
-  var lw=Math.max(1.4,Math.max(2.2*dpr,Math.min(5*dpr,view.S/2e5*dpr))*S.width*hs);
+  var lw=Math.max(1.4,Math.max(2.2*dp,Math.min(5*dp,(k/dp)/2e5*dp))*S.width*hs);
   actx.lineWidth=lw;actx.strokeStyle='rgba(255,255,255,0.10)';
-  var N=world.length,D=N===1?1:Math.min(.5,Math.max(.05,4/N)),heads=[],cur=-1;
+  var N=world.length,D=N===1?1:Math.min(.5,Math.max(.05,4/N)),heads=[],cur=-1,begun=0,dsum=0,gsum=0,tsum=0;
   for(var n=0;n<N;n++){
-    var o=world[n],pen=false,px=0,py=0,lim=o.length,part=false;
-    if(anim){var st=N>1?(1-D)*rank[n]/(N-1):0,f=(anim.t-st)/D;
+    var ow=world[n],pen=false,px=0,py=0,lim=ow.length,part=false;
+    if(t!==null){var st=N>1?(1-D)*rank[n]/(N-1):0,f=(t-st)/D;
       if(f<=0)continue;if(rank[n]>cur)cur=rank[n];
-      if(f<1){lim=Math.max(2,Math.floor(f*o.length/2)*2);part=true}}
+      begun++;var ff=Math.min(1,f);dsum+=A[n].dist*ff;gsum+=A[n].gain*ff;tsum+=A[n].secs*ff;
+      if(f<1){lim=Math.max(2,Math.floor(f*ow.length/2)*2);part=true}}
     actx.beginPath();
     for(var i=0;i<lim;i+=2){
-      var x=o[i];if(x!==x){pen=false;continue}
-      var sx=x*kh+oxh,sy=o[i+1]*kh+oyh;
+      var x=ow[i];if(x!==x){pen=false;continue}
+      var sx=x*kh+oxh,sy=ow[i+1]*kh+oyh;
       if(!pen){actx.moveTo(sx,sy);pen=true;px=sx;py=sy;continue}
-      if(Math.abs(sx-px)+Math.abs(sy-py)<1.2*dpr*hs)continue;
+      if(Math.abs(sx-px)+Math.abs(sy-py)<1.2*dp*hs)continue;
       actx.lineTo(sx,sy);px=sx;py=sy;
     }
     actx.stroke();
     if(part)heads.push([px/hs,py/hs]);
   }
   var img=actx.getImageData(0,0,aw,ah),d=img.data,m=0;
-  if(!anim){for(var q=0;q<d.length;q+=4)if(d[q]>m)m=d[q];lastMax=m}
-  var mm=anim?lastMax:m,gain=(mm?255/Math.max(mm*.75,40):1)*S.intensity,out=outImg,od=out.data;
+  if(t===null){for(var q=0;q<d.length;q+=4)if(d[q]>m)m=d[q];L.max=m}
+  var res={cur:cur,begun:begun,dist:dsum,gsum:gsum,tsum:tsum};
+  if(o&&o.measure)return res;
+  var mm=t!==null?L.max:m,gain=(mm?255/Math.max(mm*.75,40):1)*S.intensity,out=L.img,od=out.data;
   for(var p=0;p<d.length;p+=4){
     var v=d[p];if(!v){od[p+3]=0;continue}v=Math.min(255,v*gain)|0;var l=v*4;
     od[p]=lut[l];od[p+1]=lut[l+1];od[p+2]=lut[l+2];od[p+3]=lut[l+3];
   }
-  tmpc.getContext('2d').putImageData(out,0,0);
-  ctx.globalAlpha=sel>=0?.45:1;ctx.drawImage(tmpc,0,0,w,h);ctx.globalAlpha=1;
+  L.tctx.putImageData(out,0,0);
+  c.globalAlpha=(o&&o.dimAlpha)||1;c.drawImage(L.tmp,0,0,w,h);c.globalAlpha=1;
+  heads.forEach(function(p){c.beginPath();c.arc(p[0],p[1],3.2*dp,0,6.283);c.fillStyle='#fff6d8';c.fill()});
+  return res;
+}
+function rampColor(u){ // route colouring ramp, bright enough for dark maps
+  u=Math.max(0,Math.min(1,u));if(!trackLut)return '#fff';return trackLut[Math.round(u*63)]}
+var RAMPS={
+  seq:[[0,[91,140,255]],[.25,[45,212,212]],[.5,[91,227,107]],[.75,[255,210,63]],[1,[255,77,77]]],
+  div:[[0,[70,120,255]],[.4,[130,190,255]],[.5,[235,235,235]],[.6,[255,170,90]],[1,[255,60,40]]]};
+function buildRamp(div){
+  var st=RAMPS[div?'div':'seq'],out=[];
+  for(var i=0;i<64;i++){var u=i/63,j=1;while(j<st.length-1&&u>st[j][0])j++;
+    var a=st[j-1],b=st[j],f=(u-a[0])/(b[0]-a[0]),r=[0,1,2].map(function(c){return Math.round(a[1][c]+(b[1][c]-a[1][c])*f)});
+    out.push('rgb('+r.join(',')+')')}
+  return out}
+function drawTrack(c,so,tr,k,ox,oy,dp){
+  var n=so.length/2,i,pen=false,lx=0,ly=0,lv=NaN;
+  c.lineCap='round';c.lineJoin='round';c.lineWidth=3.4*dp;
+  for(i=0;i<n;i++){
+    var x=so[i*2];if(x!==x){pen=false;continue}
+    var sx=x*k+ox,sy=so[i*2+1]*k+oy,v=tr.vals[i];
+    if(pen&&Math.abs(sx-lx)+Math.abs(sy-ly)>=1.5*dp){
+      var vv=(v===v&&lv===lv)?(v+lv)/2:(v===v?v:lv);
+      c.beginPath();c.moveTo(lx,ly);c.lineTo(sx,sy);
+      c.strokeStyle=vv===vv?rampColor((vv-tr.lo)/(tr.hi-tr.lo)):'rgba(255,255,255,.5)';c.stroke();
+      lx=sx;ly=sy;lv=v}
+    else if(!pen){lx=sx;ly=sy;lv=v;pen=true}
+  }
+}
+function draw(){
+  raf=0;
+  var w=cv.width,h=cv.height;
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=S.bg;ctx.fillRect(0,0,w,h);
+  if(drawTiles&&showMap)drawTiles(w,h);
+  $('empty').style.display=world.length?'none':'grid';
+  if(!world.length||!w)return;
+  var k=view.S*dpr,ox=w/2-view.cx*k,oy=h/2-view.cy*k;
+  var r=paint(ctx,w,h,k,ox,oy,dpr,anim?anim.t:null,LM,{dimAlpha:sel>=0?.45:1});
   if(sel>=0&&world[sel]){
     var so=world[sel];
     ctx.lineCap='round';ctx.lineJoin='round';
-    tracePath(ctx,so,k,ox,oy);ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=5.5*dpr;ctx.stroke();
-    ctx.strokeStyle=PAL[S.palette].hi;ctx.lineWidth=3*dpr;ctx.stroke();
+    tracePath(ctx,so,k,ox,oy);ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=6*dpr;ctx.stroke();
+    if(track&&track.sel===sel)drawTrack(ctx,so,track,k,ox,oy,dpr);
+    else{ctx.strokeStyle=PAL[S.palette].hi;ctx.lineWidth=3*dpr;ctx.stroke()}
     var f0=-1,l0=-1;for(var z=0;z<so.length;z+=2)if(so[z]===so[z]){if(f0<0)f0=z;l0=z}
     if(f0>=0){dot(so[f0]*k+ox,so[f0+1]*k+oy,'#3ddc84');dot(so[l0]*k+ox,so[l0+1]*k+oy,'#ff4d4d')}
   }
-  if(anim){heads.forEach(function(p){ctx.beginPath();ctx.arc(p[0],p[1],3.2*dpr,0,6.283);ctx.fillStyle='#fff6d8';ctx.fill()});
-    var c=cur>=0?T.acts()[order[cur]].start:null;
-    $('adate').textContent=c?c.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):''}
+  if(anim){var cc=r.cur>=0?T.acts()[order[r.cur]].start:null;
+    $('adate').textContent=cc?cc.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):''}
   if(overlay)overlay(ctx,k,ox,oy,dpr);
 }
 function dot(x,y,col){ctx.beginPath();ctx.arc(x,y,5*dpr,0,6.283);ctx.fillStyle=col;ctx.fill();ctx.lineWidth=2*dpr;ctx.strokeStyle='#14161a';ctx.stroke()}
@@ -705,10 +903,38 @@ var api={
   setSel:function(i){sel=i;sched()},getSel:function(){return sel},
   fitTo:function(i){if(world[i]){fitList([world[i]]);sched()}},
   setOverlay:function(f){overlay=f;sched()},
+  setTrack:function(tr,i){track=tr?{vals:tr.vals,lo:tr.lo,hi:tr.hi,sel:i}:null;trackLut=tr?buildRamp(tr.div):null;sched()},
+  rampStops:function(div){return RAMPS[div?'div':'seq']},
+  rampColor:function(u,div){var l=buildRamp(div);return l[Math.round(Math.max(0,Math.min(1,u))*63)]},
+  // video export helpers (own canvas and layer, same drawing code)
+  makeLayer:function(w,h,budget){var L=mkLayer();sizeLayer(L,w,h,budget);return L},
+  paint:paint,worldBounds:function(){return world.length?boundsOf(world):null},
+  hasWorld:function(){return world.length>0},
   merc:function(lat,lon){return [mx(lon),my(lat)]},
   applySettings:function(){makeLut();labelInk();saveS();sched()}
 };
 api.hasTiles=true;api.curDim=function(){return S.dim!=null?S.dim:PROV[pi].dim};
+
+// Map picture for video export: loads the tiles with CORS so the canvas stays clean enough to record.
+// px = world * k + ox/oy. Resolves {canvas,tiles,total,dim} or null when no tile could be loaded.
+api.mapProviders=PROV.map(function(p){return {name:p.name,dim:p.dim}});
+api.exportMap=function(w,h,k,ox,oy,pidx){
+  return new Promise(function(resolve){
+    var P=PROV[pidx]||PROV[0],cvs=document.createElement('canvas');cvs.width=w;cvs.height=h;
+    var g=cvs.getContext('2d'),z=Math.max(0,Math.min(P.max,Math.round(Math.log(k/256)/Math.LN2))),n=Math.pow(2,z),ts=k/n;
+    var x0=Math.floor(-ox/ts),x1=Math.floor((w-ox)/ts),y0=Math.max(0,Math.floor(-oy/ts)),y1=Math.min(n-1,Math.floor((h-oy)/ts)),list=[];
+    for(var ty=y0;ty<=y1;ty++)for(var tx=x0;tx<=x1;tx++)list.push([((tx%n)+n)%n,ty,tx]);
+    if(!list.length||list.length>220)return resolve(null);
+    var left=list.length,okc=0,done=false,timer=setTimeout(finish,15000);
+    function finish(){if(done)return;done=true;clearTimeout(timer);resolve(okc?{canvas:cvs,tiles:okc,total:list.length,dim:P.dim}:null)}
+    list.forEach(function(L){
+      var im=new Image();im.crossOrigin='anonymous';
+      im.onload=function(){try{g.drawImage(im,Math.round(L[2]*ts+ox),Math.round(L[1]*ts+oy),Math.ceil(ts)+1,Math.ceil(ts)+1);okc++}catch(e){}if(--left===0)finish()};
+      im.onerror=function(){if(--left===0)finish()};
+      im.src=P.url(z,L[0],L[1]);
+    });
+  });
+};
 
 window.__heat=api;
 })();
@@ -865,13 +1091,17 @@ document.addEventListener('drop',function(e){
   else if(dt.files.length)T.readFiles(dt.files);
 });
 $('sample').onclick=function(){T.set(T.makeSample());T.msg('Showing 46 generated example rides.');window.__refresh(true)};
-$('clear').onclick=function(){T.set([]);T.msg('');window.__refresh(true)};
+var clr=$('clear'),armT=0;
+clr.onclick=function(){
+  if(!armT){clr.textContent='Delete saved rides?';armT=setTimeout(function(){armT=0;clr.textContent='Clear'},3500);return}
+  clearTimeout(armT);armT=0;clr.textContent='Clear';
+  T.set([]);T.wipeSaved();T.msg('Cleared, including the rides saved on this device.');window.__refresh(true)};
 })();
 </script>
 <script>
 (function(){
 var T=window.__T,$=T.$,F=window.__fmt,heat=window.__heat,box=$('mapbox'),esc=F.esc,fmt=F.fmt,hms=F.hms,ms=F.ms;
-var sel=-1;
+var sel=-1,cmode='off';
 function hav(a,b){var R=6371,r=Math.PI/180,dLa=(b[0]-a[0])*r,dLo=(b[1]-a[1])*r,
   x=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLo/2)*Math.sin(dLo/2);
   return 2*R*Math.asin(Math.sqrt(x))}
@@ -891,16 +1121,46 @@ function profile(a){
     '<path d="'+d+'" fill="none" stroke="#ec835a" stroke-width="1.6"/><text x="0" y="'+(h+11)+'" fill="#a9a8a3" font-size="10">'+Math.round(lo)+' m</text>'+
     '<text x="'+w+'" y="'+(h+11)+'" fill="#a9a8a3" font-size="10" text-anchor="end">peak '+Math.round(hi)+' m</text></svg>';
 }
+function metricChart(a,tr){
+  var xs=[],ys=[];
+  for(var i=0;i<a.pts.length;i++)if(a.pts[i]&&tr.vals[i]===tr.vals[i]){xs.push(a.cum[i]);ys.push(tr.vals[i])}
+  if(ys.length<3)return '';
+  var step=Math.max(1,Math.floor(ys.length/160)),px=[],py=[];
+  for(var j=0;j<ys.length;j+=step){px.push(xs[j]);py.push(ys[j])}
+  var lo=Math.min.apply(null,py),hi=Math.max.apply(null,py),span=Math.max(hi-lo,1e-6),X=a.dist||1,w=300,h=56,d='';
+  py.forEach(function(v,j){d+=(j?'L':'M')+(px[j]/X*w).toFixed(1)+' '+(h-4-(v-lo)/span*(h-10)).toFixed(1)});
+  var zero=tr.div&&lo<0&&hi>0?'<line x1="0" x2="'+w+'" y1="'+(h-4-(0-lo)/span*(h-10)).toFixed(1)+'" y2="'+(h-4-(0-lo)/span*(h-10)).toFixed(1)+'" stroke="rgba(255,255,255,.25)" stroke-dasharray="3 3"/>':'';
+  return '<svg viewBox="0 0 '+w+' '+(h+14)+'" width="100%" role="img" aria-label="'+tr.label+' along the ride">'+zero+'<path d="'+d+'" fill="none" stroke="#ec835a" stroke-width="1.5"/>'+
+    '<text x="0" y="'+(h+11)+'" fill="#a9a8a3" font-size="10">'+fmt(lo,tr.div?1:0)+' '+tr.unit+'</text><text x="'+w+'" y="'+(h+11)+'" fill="#a9a8a3" font-size="10" text-anchor="end">'+fmt(hi,tr.div?1:0)+' '+tr.unit+'</text></svg>';
+}
 function renderDetail(){
   var el=$('detail');
-  if(sel<0){el.classList.remove('on');el.innerHTML='';return}
+  if(sel<0){el.classList.remove('on');el.innerHTML='';heat.setTrack(null);return}
   var A=T.acts(),a=A[sel],n=A.length,avg=a.secs?a.dist/(a.secs/3600):0;
   var when=a.start?a.start.toLocaleString(undefined,{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'No timestamp';
   var g=function(k,v){return '<div><b>'+v+'</b><span>'+k+'</span></div>'};
   var h='<div class="dhead"><div><h3>'+esc(a.name)+'</h3><div class="sub2">'+esc(when)+'</div></div><button id="d-x" type="button">Close</button></div>';
   h+='<div class="dgrid">'+g('Distance',fmt(a.dist,1)+' km')+g('Moving',a.secs?hms(a.secs):'-')+g('Total',a.elapsed?hms(a.elapsed):'-')+
      g('Avg speed',avg?fmt(avg,1)+' km/h':'-')+g('Climb',fmt(a.gain)+' m')+g('Rest',a.elapsed?hms(Math.max(0,a.elapsed-a.secs)):'-')+g('Max speed',a.maxSpeed?fmt(a.maxSpeed,1)+' km/h':'-')+'</div>';
+  var sg='',est=!a.hasPw;
+  if(a.hasHr)sg+=g('Avg heart rate',Math.round(a.avgHr)+' bpm')+g('Max heart rate',Math.round(a.maxHr)+' bpm');
+  if(a.hasCad)sg+=g('Avg cadence',Math.round(a.avgCad)+' rpm');
+  var tPw=T.trackOf(a,'power');
+  if(tPw){var ap=a.hasPw?a.avgPw:a.estAvgPw,mp=a.hasPw?a.maxPw:a.estMaxPw;
+    sg+=g('Avg power'+(est?' (est.)':''),Math.round(ap)+' W')+g('Max power'+(est?' (est.)':''),Math.round(mp)+' W')}
+  if(sg)h+='<div class="dgrid" style="margin-top:6px">'+sg+'</div>';
+  var avail=T.TRACKS.filter(function(m){return T.trackOf(a,m[0])}),mode=avail.some(function(m){return m[0]===cmode})?cmode:'off',tr=mode==='off'?null:T.trackOf(a,mode);
+  if(avail.length){
+    h+='<div class="dcol"><label for="d-col">Colour route by</label><select id="d-col"><option value="off">Single colour</option>'+
+      avail.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===mode?' selected':'')+'>'+m[1]+(m[0]==='power'&&est?' (estimated)':'')+'</option>'}).join('')+'</select>';
+    if(tr){var st=heat.rampStops(tr.div),grad='linear-gradient(90deg,'+st.map(function(s){return 'rgb('+s[1].join(',')+') '+Math.round(s[0]*100)+'%'}).join(',')+')';
+      h+='<div class="lgbar" style="background:'+grad+'"></div><div class="lgend"><span>'+fmt(tr.lo,tr.div?1:0)+' '+tr.unit+'</span><span>'+fmt(tr.hi,tr.div?1:0)+' '+tr.unit+'</span></div>'}
+    h+='</div>';
+  }
   h+='<div style="margin-top:10px">'+profile(a)+'</div>';
+  if(tr)h+='<div style="margin-top:6px"><span class="dnote" style="margin:0">'+tr.label+'</span>'+metricChart(a,tr)+'</div>';
+  if(tr&&tr.est)h+='<p class="dnote">Estimated from speed, slope, rider weight and typical aerodynamics (no wind). Expect roughly 15 to 20 percent error.</p>';
+  heat.setTrack(tr,sel);
   var lines='';
   lines+='<div class="dline"><span>Distance rank</span><b>'+ord(rankOf(A,sel,function(x){return x.dist}))+' of '+n+'</b></div>';
   if(a.gain>0)lines+='<div class="dline"><span>Climbing rank</span><b>'+ord(rankOf(A,sel,function(x){return x.gain}))+' of '+n+'</b></div>';
@@ -912,6 +1172,7 @@ function renderDetail(){
   h+='<div style="margin-top:8px">'+lines+'</div><div style="display:flex;gap:6px;margin-top:10px"><button id="d-zoom" type="button">Zoom to ride</button><button id="d-export" type="button">Export video</button></div>';
   el.innerHTML=h;el.classList.add('on');if(window.__fit)window.__fit();
   $('d-x').onclick=function(){select(-1)};
+  var dc=$('d-col');if(dc)dc.onchange=function(){cmode=this.value;renderDetail()};
   $('d-zoom').onclick=function(){heat.fitTo(sel)};
   $('d-export').onclick=function(){if(window.__export)window.__export.open(sel)};
 }
@@ -1022,6 +1283,7 @@ var S=heat.settings,D=heat.defaults;
 Object.keys(heat.palettes).forEach(function(k){var o=document.createElement('option');o.value=o.textContent=k;$('s-pal').appendChild(o)});
 function syncSettings(){
   $('s-pal').value=S.palette;$('s-bg').value=S.bg;
+  $('s-mass').value=T.rider.mass;
   $('s-int').value=S.intensity;$('v-int').textContent=Number(S.intensity).toFixed(2)+'x';
   $('s-w').value=S.width;$('v-w').textContent=Number(S.width).toFixed(1)+'x';
   if(heat.hasTiles){$('dimrow').style.display='';var d=Math.round(heat.curDim()*100);$('s-dim').value=d;$('v-dim').textContent=d+'%'}
@@ -1029,6 +1291,7 @@ function syncSettings(){
 }
 window.__syncDim=syncSettings;
 if(!heat.hasTiles)document.querySelector('label[for=s-bg]').textContent='Background colour';
+$('s-mass').onchange=function(){var m=parseFloat(this.value);if(m>=30&&m<=250){T.setMass(m);renderDetail()}else this.value=T.rider.mass};
 $('s-pal').onchange=function(){S.palette=this.value;heat.applySettings();syncSettings()};
 $('s-int').oninput=function(){S.intensity=+this.value;heat.applySettings();syncSettings()};
 $('s-w').oninput=function(){S.width=+this.value;heat.applySettings();syncSettings()};
@@ -1045,18 +1308,19 @@ document.addEventListener('keydown',function(e){
 window.__onData=function(){sel=-1;renderDetail();if(segMode)cancelSeg();renderSegs()};
 // ---------- start ----------
 syncSettings();heat.resize();
-T.set(T.makeSample());
-T.msg('Showing generated example rides. Add your own GPX files or a whole folder to replace them.');
-window.__refresh(true);
+T.loadSaved().then(function(list){
+  if(list.length){T.set(list);T.msg('Restored '+list.length+' saved ride'+(list.length===1?'':'s')+' from this device.')}
+  else{T.set(T.makeSample());T.msg('Showing generated example rides. Add your own GPX files or a whole folder to replace them.')}
+  window.__refresh(true);
+});
 })();
 </script>
 <script>
 (function(){
 var T=window.__T,$=T.$,heat=window.__heat,F=window.__fmt;
 var CAN_SAVE=!!window.__STANDALONE&&typeof MediaRecorder!=='undefined'&&!!HTMLCanvasElement.prototype.captureStream;
-var X={a:null,P:null,raf:0,running:false,url:null,col:'#ffb347'};
+var X={a:null,P:null,P2:null,L:null,mode:'single',raf:0,running:false,url:null,bgKey:'',bgC:null,bgP:null,bgTok:0};
 var cv=$('xcv'),c=cv.getContext('2d');
-// ----- per-point cumulative series for one ride (same rules as the totals) -----
 function climbCum(e){
   var s=e.map(function(_,i){var a=Math.max(0,i-2),b=Math.min(e.length-1,i+2),t=0;for(var k=a;k<=b;k++)t+=e[k];return t/(b-a+1)});
   var ref=s[0],g=0,out=[0];
@@ -1069,7 +1333,9 @@ function climbCum(e){
 function hav(a,b){var R=6371,r=Math.PI/180,dLa=(b[0]-a[0])*r,dLo=(b[1]-a[1])*r,
   x=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLo/2)*Math.sin(dLo/2);
   return 2*R*Math.asin(Math.sqrt(x))}
-function series(a){
+// ----- per-point series for one ride -----
+function lerpN(a,b,f){if(a!==a)return b;if(b!==b)return a;return a+(b-a)*f}
+function series(a,colby){
   var n=a.pts.length,mv=new Array(n),gn=new Array(n),m=0,prev=null,prevT=NaN,segI=[],segE=[],base=0;
   for(var i=0;i<n;i++)gn[i]=NaN;
   function flush(){
@@ -1088,13 +1354,24 @@ function series(a){
   }
   flush();
   var last=0;for(i=0;i<n;i++){if(gn[i]!==gn[i])gn[i]=last;else last=gn[i]}
-  return {mv:mv,gn:gn};
+  var K=T.kin(a),spd=T.smooth(K.v.map(function(v){return v===v?v*3.6:NaN}),2),
+      pw=a.hasPw?T.smooth(a.pw,2):T.estPower(a),tr=colby&&colby!=='solid'?T.trackOf(a,colby):null;
+  return {mv:mv,gn:gn,spd:spd,hr:T.smooth(a.hr,2),cad:T.smooth(a.cad,2),pw:pw,tr:tr};
 }
-// ----- layout and sampling -----
-function prep(a,W,H,pos,wantGraph){
-  var ser=series(a),V=[],E=[],i,j;
-  for(i=0;i<a.pts.length;i++)if(a.pts[i]){var mc=heat.merc(a.pts[i][0],a.pts[i][1]);V.push({x:mc[0],y:mc[1],c:a.cum[i],mv:ser.mv[i],gn:ser.gn[i],el:0});E.push(a.ele[i])}
-  // elevation for the graph: fill gaps, then smooth over about 9 points
+var RLUT={};
+function rampLut(div){
+  if(RLUT[div])return RLUT[div];
+  var st=heat.rampStops(div),out=[];
+  for(var i=0;i<64;i++){var u=i/63,j=1;while(j<st.length-1&&u>st[j][0])j++;
+    var a=st[j-1],b=st[j],f=(u-a[0])/(b[0]-a[0]);
+    out.push('rgb('+[0,1,2].map(function(q){return Math.round(a[1][q]+(b[1][q]-a[1][q])*f)}).join(',')+')')}
+  return (RLUT[div]=out);
+}
+// ----- layout and sampling for a single ride -----
+function prep(a,W,H,o){
+  var wantGraph=o.graph,pos=o.pos,ser=series(a,o.colby),V=[],E=[],i,j;
+  for(i=0;i<a.pts.length;i++)if(a.pts[i]){var mc=heat.merc(a.pts[i][0],a.pts[i][1]);
+    V.push({x:mc[0],y:mc[1],c:a.cum[i],mv:ser.mv[i],gn:ser.gn[i],el:0,spd:ser.spd[i],hr:ser.hr[i],cad:ser.cad[i],pw:ser.pw[i],cv:ser.tr?ser.tr.vals[i]:NaN});E.push(a.ele[i])}
   var firstFin=NaN,nFin=0,emin=1e9,emax=-1e9;
   for(j=0;j<E.length;j++)if(E[j]===E[j]){if(firstFin!==firstFin)firstFin=E[j];nFin++;if(E[j]<emin)emin=E[j];if(E[j]>emax)emax=E[j]}
   var hasEle=nFin>5&&emax-emin>0.5,graph=!!wantGraph&&hasEle;
@@ -1105,8 +1382,9 @@ function prep(a,W,H,pos,wantGraph){
   }
   var x0=1,x1=0,y0=1,y1=0;
   V.forEach(function(v){if(v.x<x0)x0=v.x;if(v.x>x1)x1=v.x;if(v.y<y0)y0=v.y;if(v.y>y1)y1=v.y});
-  var u=W/1080,padX=Math.round(W*.09),statH=Math.round(190*u),gap=Math.round(60*u),edge=Math.round(H*.08),
-      gh=graph?Math.round(250*u):0,gg=graph?gap:0,ra,sy,gy0;
+  var u=Math.min(W,H)/1080,padX=Math.round(W*.09),statH=Math.round(190*u),gap=Math.round(60*u),edge=Math.round(Math.min(H,W*1.78)*.08),
+      gh=graph?Math.round(250*u):0,gg=graph?gap:0,ra,sy,gy0,sa=o.stats.length?1:0;
+  if(!sa){statH=0;gap=Math.round(20*u)}
   if(pos==='top'){sy=edge;gy0=sy+statH+gap;ra={x:padX,y:gy0+gh+gg,w:W-2*padX,h:H-(gy0+gh+gg)-edge}}
   else{ra={x:padX,y:edge,w:W-2*padX,h:H-edge-edge-statH-gap-gh-gg};gy0=ra.y+ra.h+gap;sy=gy0+gh+gg}
   var bw=Math.max(x1-x0,1e-9),bh=Math.max(y1-y0,1e-9),sc=Math.min(ra.w/bw,ra.h/bh),cx=(x0+x1)/2,cy=(y0+y1)/2;
@@ -1117,7 +1395,10 @@ function prep(a,W,H,pos,wantGraph){
     while(j<V.length-1&&V[j].c<tg)j++;
     var p0=V[Math.max(0,j-1)],p1=V[Math.min(j,V.length-1)],span=p1.c-p0.c,f=span>0?Math.min(1,Math.max(0,(tg-p0.c)/span)):1;
     var x=p0.x+(p1.x-p0.x)*f,y=p0.y+(p1.y-p0.y)*f;
-    S.push({x:(x-cx)*sc+ra.x+ra.w/2,y:(y-cy)*sc+ra.y+ra.h/2,c:p0.c+(p1.c-p0.c)*f,mv:p0.mv+(p1.mv-p0.mv)*f,gn:p0.gn+(p1.gn-p0.gn)*f,el:p0.el+(p1.el-p0.el)*f});
+    var q={x:(x-cx)*sc+ra.x+ra.w/2,y:(y-cy)*sc+ra.y+ra.h/2,c:p0.c+(p1.c-p0.c)*f,mv:p0.mv+(p1.mv-p0.mv)*f,gn:p0.gn+(p1.gn-p0.gn)*f,el:p0.el+(p1.el-p0.el)*f,
+      spd:lerpN(p0.spd,p1.spd,f),hr:lerpN(p0.hr,p1.hr,f),cad:lerpN(p0.cad,p1.cad,f),pw:lerpN(p0.pw,p1.pw,f),cv:lerpN(p0.cv,p1.cv,f)};
+    if(ser.tr){var lut=rampLut(ser.tr.div),uu=(q.cv-ser.tr.lo)/(ser.tr.hi-ser.tr.lo);q.colr=q.cv===q.cv?lut[Math.round(Math.max(0,Math.min(1,uu))*63)]:'rgb(200,200,200)'}
+    S.push(q);
   }
   var gr=null;
   if(graph){
@@ -1126,31 +1407,86 @@ function prep(a,W,H,pos,wantGraph){
     gr={x:padX,y:gy0+cap,w:W-2*padX,h:gh-cap,cap:gy0+Math.round(24*u)};
     S.forEach(function(q){q.gx=gr.x+gr.w*(total>0?q.c/total:0);q.gy=gr.y+gr.h-(q.el-lo)/(hi-lo)*gr.h});
   }
-  return {S:S,N:N,W:W,H:H,u:u,sy:sy,padX:padX,final:S[N-1],gr:gr};
+  var scrim=pos==='top'?{a:ra.y+70*u,b:0}:{a:ra.y+ra.h-70*u,b:H};
+  return {S:S,N:N,W:W,H:H,u:u,sy:sy,padX:padX,final:S[N-1],gr:gr,o:o,scrim:scrim,tr:ser.tr,est:!a.hasPw,
+    keyY:(pos==='top'?H-edge*.55:edge*.55),k:sc,ox:ra.x+ra.w/2-cx*sc,oy:ra.y+ra.h/2-cy*sc,bg:null};
 }
 function fmtDist(v){return v.toFixed(2)}
 function fmtMov(s){s=Math.round(s);var h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60;
   return h?h+':'+(m<10?'0':'')+m+':'+(r<10?'0':'')+r:m+':'+(r<10?'0':'')+r}
 var FONT='system-ui,-apple-system,"Segoe UI",sans-serif';
 function hexA(h,a){return 'rgba('+parseInt(h.slice(1,3),16)+','+parseInt(h.slice(3,5),16)+','+parseInt(h.slice(5,7),16)+','+a+')'}
-function drawFrame(P,p,col){
-  var S=P.S,N=P.N,u=P.u,W=P.W,H=P.H,i;
+var FONT0=null;
+function drawBackdrop(P){
+  var o=P.o;
+  c.setTransform(1,0,0,1,0,0);c.globalAlpha=1;c.fillStyle='#000';c.fillRect(0,0,P.W,P.H);
+  if(P.bg){
+    c.drawImage(P.bg,0,0,P.W,P.H);c.fillStyle='rgba(0,0,0,'+(o.dim/100)+')';c.fillRect(0,0,P.W,P.H);
+    var g=c.createLinearGradient(0,P.scrim.a,0,P.scrim.b);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.7)');
+    c.fillStyle=g;c.fillRect(0,Math.min(P.scrim.a,P.scrim.b),P.W,Math.abs(P.scrim.b-P.scrim.a));
+  }
+}
+// a row of up to four big numbers; items: {label,val,unit,wide}
+function drawStats(P,items,sy){
+  var u=P.u,W=P.W,n=items.length;if(!n)return;
+  var colW=(W-2*P.padX)/n;
+  c.textBaseline='alphabetic';
+  items.forEach(function(it,k){
+    var cx=P.padX+colW*k+colW/2;
+    c.font='700 '+(64*u)+'px '+FONT;var vw=c.measureText(it.wide).width;
+    c.font='600 '+(30*u)+'px '+FONT;var uw=it.unit?c.measureText(it.unit).width+8*u:0;
+    var sc=Math.min(1,(colW-24*u)/(vw+uw));
+    var lf=Math.min(1,(colW-16*u)/Math.max(1,(function(){c.font='600 '+(23*u)+'px '+FONT;return c.measureText(it.label).width+(it.label.length-1)*2.5*u})()));
+    c.font='600 '+(23*u*Math.min(sc,lf>0?lf:1))+'px '+FONT;
+    c.fillStyle='rgba(255,255,255,.7)';c.textAlign='center';
+    if('letterSpacing' in c)c.letterSpacing=(2.5*u)+'px';
+    c.fillText(it.label,cx,sy+28*u);
+    if('letterSpacing' in c)c.letterSpacing='0px';
+    c.font='700 '+(64*u*sc)+'px '+FONT;vw=c.measureText(it.wide).width;
+    c.font='600 '+(30*u*sc)+'px '+FONT;uw=it.unit?c.measureText(it.unit).width+8*u*sc:0;
+    var x0=cx-(vw+uw)/2;
+    c.textAlign='left';c.font='700 '+(64*u*sc)+'px '+FONT;c.fillStyle='#fff';c.fillText(it.val,x0,sy+106*u);
+    if(it.unit){c.font='600 '+(30*u*sc)+'px '+FONT;c.fillStyle='rgba(255,255,255,.7)';c.fillText(it.unit,x0+vw+8*u*sc,sy+106*u)}
+    if(k){c.fillStyle='rgba(255,255,255,.22)';c.fillRect(P.padX+colW*k-1*u,sy+4*u,2*u,124*u)}
+  });
+}
+var STATDEF={
+  dist:{name:'Distance',label:'DISTANCE',unit:'km',get:function(h){return fmtDist(h.c)},wide:function(P){return fmtDist(P.final.c)}},
+  mov:{name:'Moving time',label:'MOVING TIME',unit:'',get:function(h){return fmtMov(h.mv)},wide:function(P){return fmtMov(P.final.mv)}},
+  gain:{name:'Elevation gain',label:'ELEVATION GAIN',unit:'m',get:function(h){return String(Math.round(h.gn))},wide:function(P){return String(Math.round(P.final.gn))}},
+  spd:{name:'Speed',label:'SPEED',unit:'km/h',get:function(h){return h.spd===h.spd?h.spd.toFixed(1):'--'},wide:function(){return '88.8'}},
+  hr:{name:'Heart rate',label:'HEART RATE',unit:'bpm',get:function(h){return h.hr===h.hr?String(Math.round(h.hr)):'--'},wide:function(){return '188'},need:'hasHr'},
+  pwr:{name:'Power',label:'POWER',unit:'W',get:function(h){return h.pw===h.pw?String(Math.round(h.pw)):'--'},wide:function(){return '888'}},
+  cad:{name:'Cadence',label:'CADENCE',unit:'rpm',get:function(h){return h.cad===h.cad?String(Math.round(h.cad)):'--'},wide:function(){return '188'},need:'hasCad'}
+};
+function drawFrame(P,p){
+  var o=P.o,S=P.S,N=P.N,u=P.u,W=P.W,H=P.H,i,col=o.col,clean=o.look==='clean';
   p=Math.max(0,Math.min(1,p||0)); // progress is always inside 0..1
-  c.setTransform(1,0,0,1,0,0);c.globalAlpha=1;c.fillStyle='#000';c.fillRect(0,0,W,H);
+  drawBackdrop(P);
   c.lineCap='round';c.lineJoin='round';
   // faint full route so the viewer sees where the line is going
   c.beginPath();c.moveTo(S[0].x,S[0].y);for(i=1;i<N;i++)c.lineTo(S[i].x,S[i].y);
-  c.strokeStyle='rgba(255,255,255,.17)';c.lineWidth=6*u;c.stroke();
+  c.strokeStyle=P.bg?'rgba(255,255,255,.3)':'rgba(255,255,255,.17)';c.lineWidth=(clean?4:6)*u;c.stroke();
   var k=p*(N-1),ix=Math.min(N-2,Math.floor(k)),f=k-ix,a=S[ix],b=S[ix+1];
-  var head={x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f,c:a.c+(b.c-a.c)*f,mv:a.mv+(b.mv-a.mv)*f,gn:a.gn+(b.gn-a.gn)*f,el:a.el+(b.el-a.el)*f};
+  var head={x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f,c:a.c+(b.c-a.c)*f,mv:a.mv+(b.mv-a.mv)*f,gn:a.gn+(b.gn-a.gn)*f,el:a.el+(b.el-a.el)*f,
+    spd:lerpN(a.spd,b.spd,f),hr:lerpN(a.hr,b.hr,f),cad:lerpN(a.cad,b.cad,f),pw:lerpN(a.pw,b.pw,f)};
   c.beginPath();c.moveTo(S[0].x,S[0].y);for(i=1;i<=ix;i++)c.lineTo(S[i].x,S[i].y);c.lineTo(head.x,head.y);
   c.strokeStyle=col;
-  c.globalAlpha=.12;c.lineWidth=30*u;c.stroke();
-  c.globalAlpha=.3;c.lineWidth=15*u;c.stroke();
-  c.globalAlpha=1;c.lineWidth=7*u;c.stroke();
-  c.beginPath();c.arc(S[0].x,S[0].y,11*u,0,6.2832);c.fillStyle='#000';c.fill();c.lineWidth=5*u;c.strokeStyle='#fff';c.stroke();
-  c.beginPath();c.arc(head.x,head.y,24*u,0,6.2832);c.globalAlpha=.3;c.fillStyle=col;c.fill();c.globalAlpha=1;
-  c.beginPath();c.arc(head.x,head.y,11*u,0,6.2832);c.fillStyle='#fff';c.fill();
+  if(P.bg){c.globalAlpha=.55;c.lineWidth=((clean?5:7)+5)*u;c.strokeStyle='#000';c.stroke();c.strokeStyle=col}
+  if(!clean){c.globalAlpha=.12;c.lineWidth=30*u;c.stroke();c.globalAlpha=.3;c.lineWidth=15*u;c.stroke()}
+  c.globalAlpha=1;
+  if(P.tr){ // route coloured by speed, gradient, heart rate...
+    c.lineWidth=(clean?5:7)*u;var cur=S[0].colr,x=S[0].x,y=S[0].y;c.beginPath();c.moveTo(x,y);
+    for(i=1;i<=ix+1;i++){
+      var tx=i<=ix?S[i].x:head.x,ty=i<=ix?S[i].y:head.y,cc=S[i-1].colr;
+      if(cc!==cur){c.strokeStyle=cur;c.stroke();c.beginPath();c.moveTo(x,y);cur=cc}
+      c.lineTo(tx,ty);x=tx;y=ty}
+    c.strokeStyle=cur;c.stroke();
+  }else{c.lineWidth=(clean?5:7)*u;c.stroke()}
+  c.beginPath();c.arc(S[0].x,S[0].y,(clean?9:11)*u,0,6.2832);c.fillStyle='#000';c.fill();c.lineWidth=5*u;c.strokeStyle='#fff';c.stroke();
+  if(!clean){c.beginPath();c.arc(head.x,head.y,24*u,0,6.2832);c.globalAlpha=.3;c.fillStyle=col;c.fill();c.globalAlpha=1}
+  c.beginPath();c.arc(head.x,head.y,(clean?9:11)*u,0,6.2832);c.fillStyle='#fff';c.fill();
+  if(clean){c.lineWidth=3*u;c.strokeStyle='rgba(0,0,0,.6)';c.stroke()}
   // elevation graph, drawn in step with the route
   var g=P.gr;
   if(g){
@@ -1166,36 +1502,23 @@ function drawFrame(P,p,col){
     c.beginPath();c.arc(hx,hy,9*u,0,6.2832);c.fillStyle='#fff';c.fill();
     c.textBaseline='alphabetic';c.font='600 '+(21*u)+'px '+FONT;
     if('letterSpacing' in c)c.letterSpacing=(3*u)+'px';
-    c.textAlign='left';c.fillStyle='rgba(255,255,255,.62)';c.fillText('ELEVATION',g.x,g.cap);
+    c.textAlign='left';c.fillStyle='rgba(255,255,255,.7)';c.fillText('ELEVATION',g.x,g.cap);
     if('letterSpacing' in c)c.letterSpacing='0px';
     c.textAlign='right';c.fillStyle='#fff';c.font='700 '+(26*u)+'px '+FONT;c.fillText(Math.round(head.el)+' m',g.x+g.w,g.cap);
   }
-  // stats
-  var sy=P.sy,colW=(W-2*P.padX)/3,fin=P.final;
-  var items=[
-    ['DISTANCE',fmtDist(head.c),'km',fmtDist(fin.c)],
-    ['MOVING TIME',fmtMov(head.mv),'',fmtMov(fin.mv)],
-    ['ELEVATION GAIN',String(Math.round(head.gn)),'m',String(Math.round(fin.gn))]];
-  c.textBaseline='alphabetic';
-  items.forEach(function(it,n){
-    var cx=P.padX+colW*n+colW/2;
-    c.font='600 '+(23*u)+'px '+FONT;
-    c.fillStyle='rgba(255,255,255,.62)';c.textAlign='center';
-    if('letterSpacing' in c)c.letterSpacing=(2.5*u)+'px';
-    c.fillText(it[0],cx,sy+28*u);
-    if('letterSpacing' in c)c.letterSpacing='0px';
-    c.font='700 '+(64*u)+'px '+FONT;
-    var vw=c.measureText(it[3]).width;
-    c.font='600 '+(30*u)+'px '+FONT;
-    var uw=it[2]?c.measureText(it[2]).width+8*u:0,x0=cx-(vw+uw)/2;
-    c.textAlign='left';
-    c.font='700 '+(64*u)+'px '+FONT;
-    c.fillStyle='#fff';c.fillText(it[1],x0,sy+106*u);
-    if(it[2]){c.font='600 '+(30*u)+'px '+FONT;c.fillStyle='rgba(255,255,255,.62)';c.fillText(it[2],x0+vw+8*u,sy+106*u)}
-    if(n){c.fillStyle='rgba(255,255,255,.2)';c.fillRect(P.padX+colW*n-1*u,sy+4*u,2*u,124*u)}
-  });
+  var items=o.stats.map(function(id){var d=STATDEF[id];return {label:d.label+(id==='pwr'&&P.est?' (EST)':''),val:d.get(head),unit:d.unit,wide:d.wide(P)}});
+  drawStats(P,items,P.sy);
+  // colour key
+  if(P.tr){
+    var tr=P.tr,kw=Math.min(W*.5,480*u),kx=(W-kw)/2,ky=P.keyY,st=heat.rampStops(tr.div),gk=c.createLinearGradient(kx,0,kx+kw,0);
+    st.forEach(function(s){gk.addColorStop(s[0],'rgb('+s[1].join(',')+')')});
+    c.fillStyle=gk;c.fillRect(kx,ky,kw,10*u);
+    c.font='600 '+(20*u)+'px '+FONT;c.fillStyle='rgba(255,255,255,.85)';c.textBaseline='alphabetic';
+    c.textAlign='left';c.fillText(Math.round(tr.lo*(tr.div?10:1))/(tr.div?10:1)+' '+tr.unit,kx,ky+34*u);
+    c.textAlign='right';c.fillText(Math.round(tr.hi*(tr.div?10:1))/(tr.div?10:1)+' '+tr.unit,kx+kw,ky+34*u);
+    c.textAlign='center';c.fillText(tr.label.toUpperCase(),W/2,ky-8*u);
+  }
 }
-// ----- dialog and recording -----
 var EASE={
   linear:function(x){return x},
   smooth:function(x){return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2},
@@ -1216,11 +1539,72 @@ function speedMap(P){
   };
 }
 function durVal(){var v=parseFloat($('x-dur').value);return isFinite(v)?Math.max(1,Math.min(600,v)):8}
-function opts(){var sz=$('x-size').value.split('x');return {W:+sz[0],H:+sz[1],pos:$('x-pos').value,dur:durVal(),col:$('x-col').value,ease:$('x-ease').value,graph:$('x-graph').checked}}
+// ----- all-rides animation -----
+function ordList(){var A=T.acts(),st=A.map(function(a){return a.start?+a.start:Infinity});
+  return st.map(function(_,i){return i}).sort(function(a,b){return st[a]-st[b]||a-b})}
+var ALLDEF={
+  rides:{name:'Rides',label:'RIDES',unit:'',get:function(r){return String(r.begun)},wide:function(P){return String(P.n)}},
+  dist:{name:'Distance',label:'DISTANCE',unit:'km',get:function(r){return r.dist.toFixed(0)},wide:function(P){return P.totalDist.toFixed(0)}},
+  mov:{name:'Moving time',label:'MOVING TIME',unit:'h',get:function(r){return (r.tsum/3600).toFixed(0)},wide:function(P){return (P.totalSecs/3600).toFixed(0)}},
+  gain:{name:'Elevation gain',label:'ELEVATION',unit:'m',get:function(r){return Math.round(r.gsum).toLocaleString()},wide:function(P){return Math.round(P.totalGain).toLocaleString()}},
+  date:{name:'Date',label:'DATE',unit:'',get:function(r,P){var a=r.cur>=0?T.acts()[P.ord[r.cur]]:null;return a&&a.start?a.start.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):''},wide:function(){return '88 Mar 8888'}}
+};
+function prepAll(W,H,o){
+  var A=T.acts(),b=heat.worldBounds();if(!b)return null;
+  var u=Math.min(W,H)/1080,padX=Math.round(W*.07),statH=o.stats.length?Math.round(190*u):0,edge=Math.round(Math.min(H,W*1.78)*.07),gap=Math.round(50*u);
+  var ra=o.pos==='top'?{x:padX,y:edge+statH+gap,w:W-2*padX,h:H-(edge+statH+gap)-edge}:{x:padX,y:edge,w:W-2*padX,h:H-2*edge-statH-gap},
+      bw=Math.max(b[2]-b[0],1e-6),bh=Math.max(b[3]-b[1],1e-6),k=Math.min(ra.w/bw,ra.h/bh,2.5e7),cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2,
+      key=W+'x'+H;
+  if(!X.L||X.Lkey!==key){X.L=heat.makeLayer(W,H,1.6e6);X.Lkey=key}
+  var P={W:W,H:H,u:u,padX:padX,o:o,k:k,ox:ra.x+ra.w/2-cx*k,oy:ra.y+ra.h/2-cy*k,dp:Math.min(W,H)/720,L:X.L,bg:null,
+    sy:o.pos==='top'?edge:H-edge-statH,ord:ordList(),n:A.length,
+    totalDist:A.reduce(function(s,a){return s+a.dist},0),totalSecs:A.reduce(function(s,a){return s+a.secs},0),totalGain:A.reduce(function(s,a){return s+a.gain},0)};
+  P.scrim=o.pos==='top'?{a:edge+statH+gap*.5+40*u,b:0}:{a:P.sy-60*u,b:H};
+  heat.paint(null,W,H,P.k,P.ox,P.oy,P.dp,null,P.L,{measure:true});
+  return P;
+}
+function drawAll(P,t){
+  var o=P.o;drawBackdrop(P);
+  var r=heat.paint(c,P.W,P.H,P.k,P.ox,P.oy,P.dp,Math.max(0,Math.min(1,t)),P.L,{});
+  var items=o.stats.map(function(id){var d=ALLDEF[id];return {label:d.label,val:d.get(r,P),unit:d.unit,wide:d.wide(P)}});
+  drawStats(P,items,P.sy);
+}
+// ----- options, layout, background -----
+function ids(){return X.mode==='all'?ALLIDS:SINGLEIDS}
+var SINGLEIDS=['dist','mov','gain','spd','hr','pwr','cad'],ALLIDS=['rides','dist','mov','gain','date'];
+function checkedStats(){var out=[];[].forEach.call($('x-stats').querySelectorAll('input'),function(i){if(i.checked&&!i.disabled||i.checked&&i.disabled&&false)out.push(i.value)});return out.slice(0,4)}
+function opts(){var sz=$('x-size').value.split('x'),bg=$('x-bg').value;
+  return {W:+sz[0],H:+sz[1],pos:$('x-pos').value,dur:durVal(),col:$('x-col').value,ease:$('x-ease').value,graph:$('x-graph').checked,
+    look:$('x-look').value,colby:$('x-colby').value,bg:bg,dim:+$('x-dim').value,stats:checkedStats()}}
 function setStatus(t){$('x-status').textContent=t}
+function setAspect(W,H){var m=$('xcv').parentNode;m.style.setProperty('--ar',W+'/'+H);m.style.setProperty('--arn',String(W/H))}
+function bgKey(o,P){return [X.mode,o.bg,o.W,o.H,o.pos,o.stats.length?1:0,o.graph?1:0,Math.round(P.k),Math.round(P.ox),Math.round(P.oy)].join('|')}
+function wantBg(o,P){
+  if(o.bg==='black'||!heat.exportMap){P.bg=null;return Promise.resolve()}
+  var key=bgKey(o,P);
+  if(X.bgKey===key){P.bg=X.bgC;return X.bgP||Promise.resolve()}
+  X.bgKey=key;X.bgC=null;
+  setStatus('Loading map...');
+  var tok=++X.bgTok;
+  X.bgP=heat.exportMap(o.W,o.H,P.k,P.ox,P.oy,o.bg==='map1'?1:0).then(function(r){
+    if(tok!==X.bgTok)return;
+    X.bgP=null;
+    if(!r){X.bgC=null;setStatus('Could not load map tiles for the video (offline, or the tile server refused). Using a black background.');return}
+    X.bgC=r.canvas;P.bg=r.canvas;
+    setStatus(r.tiles<r.total?'Some map tiles failed to load ('+(r.total-r.tiles)+' of '+r.total+').':'');
+    if(!X.running)redrawStill();
+  });
+  return X.bgP;
+}
+function redrawStill(){if(X.mode==='all'){if(X.P2)drawAll(X.P2,1)}else if(X.P)drawFrame(X.P,1)}
 function layout(){
-  if(!X.a)return;var o=opts();cv.width=o.W;cv.height=o.H;
-  X.P=prep(X.a,o.W,o.H,o.pos,o.graph);drawFrame(X.P,1,o.col);
+  var o=opts();
+  if(X.mode==='all'&&!T.acts().length)return;
+  if(X.mode==='single'&&!X.a)return;
+  cv.width=o.W;cv.height=o.H;setAspect(o.W,o.H);
+  if(X.mode==='all'){X.P2=prepAll(o.W,o.H,o);if(!X.P2)return;X.P2.bg=(o.bg!=='black'&&X.bgC&&X.bgKey===bgKey(o,X.P2))?X.bgC:null;drawAll(X.P2,1);wantBg(o,X.P2)}
+  else{X.P=prep(X.a,o.W,o.H,o);X.P.bg=(o.bg!=='black'&&X.bgC&&X.bgKey===bgKey(o,X.P))?X.bgC:null;drawFrame(X.P,1);wantBg(o,X.P)}
+  if(o.bg==='black'){X.bgKey='';X.bgC=null;setStatus('')}
 }
 function resetOutput(){
   if(X.url){URL.revokeObjectURL(X.url);X.url=null}
@@ -1271,11 +1655,22 @@ function pickMime(){
   return '';
 }
 function run(record){
-  if(X.running||!X.a)return;
+  var Pm=X.mode==='all'?X.P2:X.P;
+  if(X.running||!Pm)return;
   resetOutput();layout();
-  var o=opts(),P=X.P,hold=1.5,rec=null,chunks=[],mime='',ease=EASE[o.ease]||EASE.linear,recT0=0;
-  if(o.ease==='speed'){var sm=speedMap(P);if(sm)ease=sm;else{ease=EASE.linear;setStatus('This ride has no usable timestamps, so linear is used.')}}
+  Pm=X.mode==='all'?X.P2:X.P;
   X.running=true;$('x-prev').disabled=true;$('x-rec').disabled=true;
+  var o=opts(),hold=1.5,rec=null,chunks=[],mime='',ease=EASE[o.ease]||EASE.linear,recT0=0,all=X.mode==='all';
+  if(o.ease==='speed'&&!all){var sm=speedMap(Pm);if(sm)ease=sm;else{ease=EASE.linear;setStatus('This ride has no usable timestamps, so linear is used.')}}
+  var ready=(X.bgP||Promise.resolve());
+  ready.then(function(){
+    Pm=all?X.P2:X.P;
+    if(o.bg!=='black'&&X.bgC&&!Pm.bg)Pm.bg=X.bgC;
+    if(!X.running)return;
+    go();
+  });
+  function frame(p){if(all)drawAll(Pm,p);else drawFrame(Pm,p)}
+  function go(){
   if(record){
     mime=pickMime();
     try{rec=new MediaRecorder(cv.captureStream(30),mime?{mimeType:mime,videoBitsPerSecond:o.W>=1080?10e6:6e6}:{videoBitsPerSecond:6e6})}
@@ -1286,22 +1681,21 @@ function run(record){
       var fin=function(blob){
       X.url=URL.createObjectURL(blob);
       var v=$('xvid');v.src=X.url;v.hidden=false;cv.hidden=true;
-      var a=$('x-dl');a.href=X.url;a.download='trail-heat-'+X.a.name.replace(/\.gpx$/i,'').replace(/[^\w-]+/g,'_')+'.'+ext;a.hidden=false;
+      var a=$('x-dl');a.href=X.url;a.download='trail-heat-'+(all?'all-rides':X.a.name.replace(/\.gpx$/i,'').replace(/[^\w-]+/g,'_'))+'.'+ext;a.hidden=false;
       setStatus('Done: '+o.W+' x '+o.H+' '+ext.toUpperCase()+', '+secs.toFixed(1)+' s, '+(blob.size/1048576).toFixed(1)+' MB.');stopRun();
       };
-      // Chrome writes WebM with no length in the header, so players guess it (often far too short). Write the real one in.
       if(ext==='webm')fixWebmDuration(blob,secs*1000).then(fin,function(){fin(blob)});else fin(blob);
     };
-    drawFrame(P,0,o.col);recT0=performance.now();rec.start(250);
+    frame(0);recT0=performance.now();rec.start(250);
   }
   var t0=performance.now();
   (function step(){
     try{
       var t=(performance.now()-t0)/1000; // own clock, independent of the frame timestamp
-      drawFrame(P,ease(Math.max(0,Math.min(1,t/o.dur))),o.col);
+      frame(ease(Math.max(0,Math.min(1,t/o.dur))));
       if(t<o.dur+hold){setStatus((record?'Recording ':'Previewing ')+Math.max(0,Math.min(100,Math.round(t/(o.dur+hold)*100)))+'%');X.raf=requestAnimationFrame(step)}
       else{
-        drawFrame(P,1,o.col);
+        frame(1);
         if(rec){setStatus('Finishing...');setTimeout(function(){rec.stop()},150)}
         else{setStatus('');stopRun()}
       }
@@ -1310,27 +1704,73 @@ function run(record){
       setStatus('Export stopped: '+(err&&err.message?err.message:err));stopRun();
     }
   })();
+  }
 }
 function toHex(r){return '#'+r.slice(0,3).map(function(v){return ('0'+Math.round(v).toString(16)).slice(-2)}).join('')}
+var HAS_MAP=!!heat.exportMap;
+function buildStats(a){
+  var box=$('x-stats'),list=X.mode==='all'?ALLIDS:SINGLEIDS,def=X.mode==='all'?ALLDEF:STATDEF,on=X.mode==='all'?['rides','dist','gain']:['dist','mov','gain'],h='';
+  list.forEach(function(id){var d=def[id],need=d.need,off=need&&a&&!a[need];
+    h+='<label class="chk" for="xs-'+id+'"'+(off?' hidden':'')+'><input type="checkbox" id="xs-'+id+'" value="'+id+'"'+(on.indexOf(id)>=0&&!off?' checked':'')+'> '+d.name+(id==='pwr'&&a&&!a.hasPw?' (estimated)':'')+'</label>'});
+  box.innerHTML=h;limitStats();
+}
+function limitStats(){
+  var inputs=[].slice.call($('x-stats').querySelectorAll('input')),n=inputs.filter(function(i){return i.checked}).length;
+  inputs.forEach(function(i){i.disabled=!i.checked&&n>=4})
+}
+function openCommon(mode){
+  X.mode=mode;resetOutput();stopRun();X.bgKey='';X.bgC=null;X.bgP=null;X.bgTok=(X.bgTok||0)+1;
+  $('mopts').classList.toggle('all',mode==='all');
+  var bg=$('x-bg');[].forEach.call(bg.querySelectorAll('.needmap'),function(o){o.disabled=!HAS_MAP});
+  if(!HAS_MAP&&bg.value!=='black')bg.value='black';
+  $('x-dimrow').hidden=bg.value==='black';
+  [].forEach.call($('x-ease').querySelectorAll('.only-single'),function(o){o.disabled=mode==='all'});
+  if(mode==='all'&&$('x-ease').value==='speed')$('x-ease').value='smooth';
+  $('x-rec').disabled=!CAN_SAVE;setStatus('');
+  var note=[];
+  if(!HAS_MAP)note.push('Map backgrounds need the downloadable trail-heat-map.html.');
+  note.push(CAN_SAVE?'With a black background, set the clip to Screen or Lighten in your editor and the black becomes transparent.':
+    (window.__STANDALONE?'This browser cannot record video, so only the preview works.':'Saving a video needs the downloadable trail-heat-map.html. You can still preview the animation here.'));
+  $('x-note').textContent=note.join(' ');
+  $('xmodal').classList.add('on');document.body.classList.add('modalopen');$('xmodal').querySelector('.mopts').scrollTop=0;
+}
 function open(i){
   var a=T.acts()[i];if(!a)return;
-  X.a=a;resetOutput();stopRun();
+  X.a=a;
+  $('x-title').textContent='Export route video';
   $('xname').textContent=a.name+' · '+F.fmt(a.dist,1)+' km';
   $('x-col').value=toHex(heat.palettes[heat.settings.palette].r[3][1]);
-  $('x-note').textContent=CAN_SAVE?'On a clip in your editor, set the blend mode to Screen or Lighten and the black becomes transparent.':
-    (window.__STANDALONE?'This browser cannot record video, so only the preview works.':'Saving a video needs the downloadable trail-heat-map.html. You can still preview the animation here.');
-  $('x-rec').disabled=!CAN_SAVE;setStatus('');
-  $('xmodal').classList.add('on');document.body.classList.add('modalopen');$('xmodal').querySelector('.mopts').scrollTop=0;layout();
+  var cb=$('x-colby'),prev=cb.value,h='<option value="solid">Solid colour</option>';
+  T.TRACKS.forEach(function(m){if(T.trackOf(a,m[0]))h+='<option value="'+m[0]+'">'+m[1]+(m[0]==='power'&&!a.hasPw?' (estimated)':'')+'</option>'});
+  cb.innerHTML=h;cb.value=[].some.call(cb.options,function(o){return o.value===prev})?prev:'solid';
+  $('x-dur').value=8;
+  openCommon('single');buildStats(a);layout();
 }
-function close(){stopRun();resetOutput();$('xmodal').classList.remove('on');document.body.classList.remove('modalopen')}
+function openAll(){
+  var A=T.acts();if(!A.length)return;
+  X.a=null;
+  $('x-title').textContent='Export animation video';
+  $('xname').textContent='All '+A.length+' rides, drawn in date order'+(heat.hasTiles?'':'');
+  $('x-dur').value=Math.round(Math.min(30,Math.max(8,5+A.length*.25)));
+  openCommon('all');buildStats(null);layout();
+}
+function close(){stopRun();resetOutput();X.bgTok++;$('xmodal').classList.remove('on');document.body.classList.remove('modalopen')}
 $('x-dur').addEventListener('change',function(){this.value=durVal()});
-['x-size','x-pos','x-col','x-graph'].forEach(function(id){$(id).addEventListener('input',function(){if(!X.running){resetOutput();layout()}})});
+function relayout(){if(!X.running){resetOutput();layout()}}
+['x-size','x-pos','x-col','x-graph','x-look','x-colby'].forEach(function(id){$(id).addEventListener('input',relayout)});
+$('x-bg').addEventListener('input',function(){
+  $('x-dimrow').hidden=this.value==='black';
+  if(this.value==='map0')$('x-dim').value=35;else if(this.value==='map1')$('x-dim').value=55;
+  $('v-xdim').textContent=$('x-dim').value+'%';relayout()});
+$('x-dim').addEventListener('input',function(){$('v-xdim').textContent=this.value+'%';relayout()});
+$('x-stats').addEventListener('input',function(){limitStats();relayout()});
 $('x-prev').onclick=function(){run(false)};
 $('x-rec').onclick=function(){run(true)};
 $('x-close').onclick=close;
+$('anim-export').onclick=openAll;
 $('xmodal').addEventListener('click',function(e){if(e.target===$('xmodal'))close()});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&$('xmodal').classList.contains('on'))close()});
-window.__export={open:open,series:series,prep:prep};
+window.__export={open:open,openAll:openAll,series:series,prep:prep};
 })();
 </script>
 <script>
