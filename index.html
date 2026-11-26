@@ -187,6 +187,9 @@ body{padding-block:max(20px,env(safe-area-inset-top)) max(40px,env(safe-area-ins
 .mact #x-dl{flex-basis:100%;text-align:center}
 body.modalopen{overflow:hidden}
 .xgrp{display:flex;flex-direction:column;gap:10px}
+.prow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.prow[hidden]{display:none}
+.prow input[type=text]{flex:1 1 140px;min-width:0;font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:6px;padding:6px}
 .mopts.all .only-single{display:none}
 .xstats{border:1px solid var(--border);border-radius:6px;margin:0;padding:6px 10px;min-width:0}
 .xstats legend{font-size:12px;color:var(--ink2);padding:0 4px}
@@ -212,6 +215,10 @@ body.modalopen{overflow:hidden}
   .mopts{overflow:auto;min-height:0}
 }
 
+.hid{margin:0 0 10px;border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+.hid summary{cursor:pointer;color:var(--ink2);font-size:13px}
+.hrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border);margin-top:6px}
+.hrow span{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
 .dcol{margin-top:10px;display:grid;gap:4px}
 .dcol select{width:100%}
 .lgbar{height:8px;border-radius:4px;margin-top:2px}
@@ -272,7 +279,7 @@ body.modalopen{overflow:hidden}
   <section class="card"><h2>Personal bests</h2><p>Click a card to highlight that ride on the map. Best efforts use the fastest stretch of each distance inside a ride.</p><div class="pbs" id="pbs"></div></section>
   <section class="card"><h2>Segments</h2><p>Mark a start and an end on a route and see every ride that passed through both, ranked by time (elapsed, like Strava).</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button id="segbtn2" type="button">+ New segment</button></div><div id="segs"></div></section>
-  <section class="card"><h2>Rides</h2><p>Click a ride to highlight it on the map. Click a column heading to sort.</p><div class="tablewrap" id="tbl"></div></section>
+  <section class="card"><h2>Rides</h2><p>Click a ride to highlight it on the map. Click a column heading to sort.</p><div id="hidden"></div><div class="tablewrap" id="tbl"></div></section>
 </div>
 <div class="modal" id="xmodal" role="dialog" aria-modal="true" aria-label="Export route video">
   <div class="mpanel">
@@ -287,6 +294,12 @@ body.modalopen{overflow:hidden}
     <div class="mopts" id="mopts">
       <h2 style="margin:0;font-size:16px" id="x-title">Export route video</h2>
       <div id="xname" style="color:var(--ink2)"></div>
+      <div class="xgrp" id="x-presets">
+        <label for="x-preset">Presets
+          <select id="x-preset"><option value="">Choose a saved preset...</option></select></label>
+        <div class="prow"><button type="button" id="x-pre-save">Save current settings...</button><button type="button" id="x-pre-del" disabled>Delete preset</button></div>
+        <div class="prow" id="x-pre-form" hidden><input id="x-pre-name" type="text" maxlength="40" placeholder="Preset name" aria-label="Preset name"><button type="button" id="x-pre-ok" class="primary">Save</button><button type="button" id="x-pre-cancel">Cancel</button></div>
+      </div>
       <div class="xgrp">
         <label for="x-bg">Background
           <select id="x-bg"><option value="black" selected>Black (overlay on your own footage)</option><option value="map0" class="needmap">Map: dark</option><option value="map1" class="needmap">Map: streets</option><option value="map2" class="needmap">Map: streets, dark</option></select></label>
@@ -324,7 +337,8 @@ window.__STANDALONE=true;window.__PWA=true;</script>
 <script>
 (function(){
 var $=function(id){return document.getElementById(id)};
-var acts=[];
+var all=[],acts=[]; // all = every ride, acts = the visible (not hidden) ones the rest of the app sees
+function recompute(){acts=all.filter(function(a){return !a.hidden})}
 var BEST=[1,5,10,20,40]; // km
 function hav(a,b){var R=6371,r=Math.PI/180,dLa=(b[0]-a[0])*r,dLo=(b[1]-a[1])*r,
   x=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLo/2)*Math.sin(dLo/2);
@@ -479,15 +493,21 @@ function openDb(){return new Promise(function(res,rej){
 function saveRides(list){
   return openDb().then(function(db){return new Promise(function(res,rej){
     var tx=db.transaction(STN,'readwrite'),st=tx.objectStore(STN);
-    list.forEach(function(a){if(a.example)return;st.put({key:keyOf(a),name:a.name,pts:a.pts,ts:a.ts,ele:a.ele,hr:a.hr,cad:a.cad,pw:a.pw})});
+    list.forEach(function(a){if(a.example)return;st.put({key:keyOf(a),name:a.name,pts:a.pts,ts:a.ts,ele:a.ele,hr:a.hr,cad:a.cad,pw:a.pw,hidden:!!a.hidden})});
     tx.oncomplete=function(){db.close();res(true)};tx.onerror=tx.onabort=function(){db.close();rej(tx.error)}})}).catch(function(){return false})}
 function loadSaved(){
   var work=openDb().then(function(db){return new Promise(function(res,rej){
     var rq=db.transaction(STN,'readonly').objectStore(STN).getAll();
     rq.onsuccess=function(){db.close();
-      var out=[];rq.result.forEach(function(r){try{out.push(finalize({name:r.name,pts:r.pts,ts:r.ts,ele:r.ele,hr:r.hr,cad:r.cad,pw:r.pw}))}catch(e){}});res(out)};
+      var out=[];rq.result.forEach(function(r){try{var fa=finalize({name:r.name,pts:r.pts,ts:r.ts,ele:r.ele,hr:r.hr,cad:r.cad,pw:r.pw});fa.hidden=!!r.hidden;out.push(fa)}catch(e){}});res(out)};
     rq.onerror=function(){db.close();rej(rq.error)}})}).catch(function(){return []});
   return Promise.race([work,new Promise(function(r){setTimeout(function(){r([])},5000)})])}
+function dropSaved(a){return openDb().then(function(db){return new Promise(function(res){
+  var tx=db.transaction(STN,'readwrite');tx.objectStore(STN).delete(keyOf(a));tx.oncomplete=function(){db.close();res(true)};tx.onerror=function(){db.close();res(false)}})}).catch(function(){return false})}
+// hide keeps the ride saved but out of the map, stats and animation; remove deletes it for good
+function setHidden(a,on){a.hidden=!!on;recompute();if(!a.example)saveRides([a])}
+function removeRide(a){all=all.filter(function(x){return x!==a});recompute();if(!a.example)dropSaved(a)}
+function hiddenList(){return all.filter(function(a){return a.hidden})}
 function wipeSaved(){return openDb().then(function(db){return new Promise(function(res){
   var tx=db.transaction(STN,'readwrite');tx.objectStore(STN).clear();tx.oncomplete=function(){db.close();res(true)};tx.onerror=function(){db.close();res(false)}})}).catch(function(){return false})}
 // a: {name,pts[],ts[],ele[],hr[],cad[],pw[]} aligned arrays, null in pts marks a segment break
@@ -558,10 +578,11 @@ function readFiles(list){
     r.readAsText(f);
   });
   function done(){ if(--left) return;
-    acts=acts.filter(function(a){return !a.example});
-    var seen={};acts.forEach(function(a){seen[keyOf(a)]=1});
+    all=all.filter(function(a){return !a.example});
+    var seen={};all.forEach(function(a){seen[keyOf(a)]=1});
     var addedList=[];
-    fresh.forEach(function(a){var k=keyOf(a);if(seen[k]){dup++}else{seen[k]=1;acts.push(a);addedList.push(a);ok++}});
+    fresh.forEach(function(a){var k=keyOf(a);if(seen[k]){dup++}else{seen[k]=1;all.push(a);addedList.push(a);ok++}});
+    recompute();
     var base='Added '+ok+' ride'+(ok===1?'':'s')+(dup?', skipped '+dup+' duplicate'+(dup===1?'':'s'):'')+(bad.length?'. Could not read: '+bad.join(', '):'.');
     msg(base);window.__refresh(true);
     if(ok)saveRides(addedList).then(function(good){if(good)msg(base+(bad.length?'':' ')+' Saved on this device.');
@@ -594,7 +615,7 @@ function makeSample(){
   }
   return out;
 }
-window.__T={acts:function(){return acts},set:function(a){acts=a},readFiles:readFiles,msg:msg,makeSample:makeSample,$:$,BEST:BEST,
+window.__T={acts:function(){return acts},set:function(a){all=a;recompute()},setHidden:setHidden,removeRide:removeRide,hiddenList:hiddenList,readFiles:readFiles,msg:msg,makeSample:makeSample,$:$,BEST:BEST,
   loadSaved:loadSaved,wipeSaved:wipeSaved,trackOf:trackOf,TRACKS:TRACKS,estPower:estPower,kin:kin,smooth:smooth,rider:RIDER,setMass:setMass};
 })();
 </script>
@@ -1177,12 +1198,17 @@ function renderDetail(){
     var pb=true;A.forEach(function(x){if(x.best[W]&&x.best[W].sec<b.sec-0.01)pb=false});
     lines+='<div class="dline"><span>Best '+W+' km'+(pb?' <span class="badge">PB</span>':'')+'</span><b>'+ms(b.sec)+' &middot; '+fmt(W/b.sec*3600,1)+' km/h</b></div>';
   });
-  h+='<div style="margin-top:8px">'+lines+'</div><div style="display:flex;gap:6px;margin-top:10px"><button id="d-zoom" type="button">Zoom to ride</button><button id="d-export" type="button">Export video</button></div>';
+  h+='<div style="margin-top:8px">'+lines+'</div><div style="display:flex;gap:6px;margin-top:10px"><button id="d-zoom" type="button">Zoom to ride</button><button id="d-export" type="button">Export video</button></div><div style="display:flex;gap:6px;margin-top:6px"><button id="d-hide" type="button">Hide ride</button><button id="d-rm" type="button">Remove ride</button></div>';
   el.innerHTML=h;el.classList.add('on');if(window.__fit)window.__fit();
   $('d-x').onclick=function(){select(-1)};
   var dc=$('d-col');if(dc)dc.onchange=function(){cmode=this.value;renderDetail()};
   $('d-zoom').onclick=function(){heat.fitTo(sel)};
   $('d-export').onclick=function(){if(window.__export)window.__export.open(sel)};
+  $('d-hide').onclick=function(){T.setHidden(a,true);T.msg('Hidden "'+a.name+'". It stays saved; bring it back from the Rides section.');window.__refresh(false)};
+  var rm=$('d-rm'),rt=0;
+  rm.onclick=function(){
+    if(!rt){rm.textContent='Click again to delete';rt=setTimeout(function(){rt=0;if(rm.isConnected)rm.textContent='Remove ride'},3000);return}
+    clearTimeout(rt);T.removeRide(a);T.msg('Removed "'+a.name+'".');window.__refresh(false)};
 }
 function select(i,opts){
   sel=i;heat.setSel(i);renderDetail();
@@ -1313,11 +1339,28 @@ document.addEventListener('keydown',function(e){
   if(e.key!=='Escape')return;
   if(segMode)cancelSeg();else if($('settings').classList.contains('on'))$('settings').classList.remove('on');
 });
-window.__onData=function(){sel=-1;renderDetail();if(segMode)cancelSeg();renderSegs()};
+// hidden rides: kept saved, out of the map and stats until you bring them back
+var hidOpen=false;
+function renderHidden(){
+  var el=$('hidden'),L=T.hiddenList();
+  if(!L.length){el.innerHTML='';return}
+  var h='<details class="hid"'+(hidOpen?' open':'')+'><summary>'+L.length+' hidden ride'+(L.length===1?'':'s')+' (not on the map or in the stats)</summary>';
+  L.forEach(function(a,i){h+='<div class="hrow"><span>'+esc(a.name)+' &middot; '+fmt(a.dist,1)+' km'+(a.start?' &middot; '+F.dshort(a.start):'')+'</span><button type="button" data-act="show" data-i="'+i+'">Unhide</button><button type="button" data-act="del" data-i="'+i+'">Remove</button></div>'});
+  el.innerHTML=h+'</details>';
+}
+$('hidden').addEventListener('toggle',function(e){if(e.target.tagName==='DETAILS')hidOpen=e.target.open},true);
+$('hidden').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-act]');if(!b)return;
+  var a=T.hiddenList()[+b.getAttribute('data-i')];if(!a)return;
+  if(b.getAttribute('data-act')==='show'){T.setHidden(a,false);window.__refresh(false);return}
+  if(!b._armed){b._armed=1;b.textContent='Click again to delete';setTimeout(function(){if(b.isConnected){b._armed=0;b.textContent='Remove'}},3000);return}
+  T.removeRide(a);window.__refresh(false);
+});
+window.__onData=function(){sel=-1;renderDetail();if(segMode)cancelSeg();renderSegs();renderHidden()};
 // ---------- start ----------
 syncSettings();heat.resize();
 T.loadSaved().then(function(list){
-  if(list.length){T.set(list);T.msg('Restored '+list.length+' saved ride'+(list.length===1?'':'s')+' from this device.')}
+  if(list.length){T.set(list);var nv=T.acts().length;T.msg('Restored '+nv+' saved ride'+(nv===1?'':'s')+' from this device'+(nv<list.length?' ('+(list.length-nv)+' hidden).':'.'))}
   else{T.set(T.makeSample());T.msg('Showing generated example rides. Add your own GPX files or a whole folder to replace them.')}
   window.__refresh(true);
 });
@@ -1819,7 +1862,7 @@ function openCommon(mode){
   $('x-dimrow').hidden=bg.value==='black';
   [].forEach.call($('x-ease').querySelectorAll('.only-single'),function(o){o.disabled=mode==='all'});
   if(mode==='all'&&$('x-ease').value==='speed')$('x-ease').value='smooth';
-  $('x-rec').disabled=!CAN_SAVE;setStatus('');$('x-enginerow').hidden=!CAN_FRAMES;
+  $('x-rec').disabled=!CAN_SAVE;setStatus('');$('x-enginerow').hidden=!CAN_FRAMES;$('x-pre-form').hidden=true;
   var note=[];
   if(!HAS_MAP)note.push('Map backgrounds need the downloadable trail-heat-map.html.');
   note.push(CAN_SAVE?'With a black background, set the clip to Screen or Lighten in your editor and the black becomes transparent.':
@@ -1827,6 +1870,44 @@ function openCommon(mode){
   $('x-note').textContent=note.join(' ');
   $('xmodal').classList.add('on');document.body.classList.add('modalopen');$('xmodal').querySelector('.mopts').scrollTop=0;
 }
+// ----- presets (saved in this browser) -----
+var PKEY='trailheat-presets',presets=[];
+try{presets=JSON.parse(localStorage.getItem(PKEY)||'[]');if(!Array.isArray(presets))presets=[]}catch(e){presets=[]}
+function savePresets(){try{localStorage.setItem(PKEY,JSON.stringify(presets));return true}catch(e){setStatus('This browser would not save the preset.');return false}}
+function capture(){var o=opts();return {mode:X.mode,bg:o.bg,dim:o.dim,look:o.look,colby:o.colby,col:o.col,stats:o.stats,graph:o.graph,ease:o.ease,size:$('x-size').value,pos:o.pos,engine:o.engine,dur:o.dur}}
+function listPresets(pick){
+  var sel=$('x-preset'),h='<option value="">Choose a saved preset...</option>';
+  presets.forEach(function(p){if(p.mode===X.mode)h+='<option value="'+F.esc(p.name)+'">'+F.esc(p.name)+'</option>'});
+  sel.innerHTML=h;sel.value=pick||'';$('x-pre-del').disabled=!sel.value;
+}
+function setOpt(id,v){var el=$(id);if([].some.call(el.options,function(o){return o.value===v&&!o.disabled}))el.value=v}
+function applyPreset(p){
+  setOpt('x-bg',p.bg);$('x-dim').value=p.dim;$('v-xdim').textContent=p.dim+'%';$('x-dimrow').hidden=$('x-bg').value==='black';
+  setOpt('x-look',p.look);if(![].some.call($('x-colby').options,function(o){return o.value===p.colby}))$('x-colby').value='solid';else $('x-colby').value=p.colby;
+  $('x-col').value=p.col;$('x-graph').checked=!!p.graph;setOpt('x-ease',p.ease);setOpt('x-size',p.size);setOpt('x-pos',p.pos);
+  if(CAN_FRAMES)setOpt('x-engine',p.engine);
+  if(p.dur>=1)$('x-dur').value=p.dur;
+  var inputs=[].slice.call($('x-stats').querySelectorAll('input')),n=0;
+  inputs.forEach(function(i){i.checked=false;i.disabled=false});
+  (p.stats||[]).forEach(function(id){var i=$('xs-'+id);if(i&&!i.closest('label').hidden&&n<4){i.checked=true;n++}});
+  limitStats();relayout();
+}
+$('x-preset').addEventListener('change',function(){
+  $('x-pre-del').disabled=!this.value;
+  var p=presets.filter(function(q){return q.name===$('x-preset').value&&q.mode===X.mode})[0];if(p)applyPreset(p)});
+$('x-pre-save').onclick=function(){$('x-pre-form').hidden=false;var n=$('x-pre-name');n.value=$('x-preset').value||'';n.focus()};
+$('x-pre-cancel').onclick=function(){$('x-pre-form').hidden=true};
+function commitPreset(){
+  var name=$('x-pre-name').value.trim();if(!name){$('x-pre-name').focus();return}
+  var p=capture();p.name=name;
+  presets=presets.filter(function(q){return !(q.name===name&&q.mode===X.mode)});presets.push(p);
+  if(savePresets()){$('x-pre-form').hidden=true;listPresets(name);setStatus('Saved preset "'+name+'".')}
+}
+$('x-pre-ok').onclick=commitPreset;
+$('x-pre-name').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();commitPreset()}else if(e.key==='Escape'){e.stopPropagation();$('x-pre-form').hidden=true}});
+$('x-pre-del').onclick=function(){
+  var n=$('x-preset').value;if(!n)return;
+  presets=presets.filter(function(q){return !(q.name===n&&q.mode===X.mode)});savePresets();listPresets('');setStatus('Deleted preset "'+n+'".')};
 function open(i){
   var a=T.acts()[i];if(!a)return;
   X.a=a;
@@ -1837,7 +1918,7 @@ function open(i){
   T.TRACKS.forEach(function(m){if(T.trackOf(a,m[0]))h+='<option value="'+m[0]+'">'+m[1]+(m[0]==='power'&&!a.hasPw?' (estimated)':'')+'</option>'});
   cb.innerHTML=h;cb.value=[].some.call(cb.options,function(o){return o.value===prev})?prev:'solid';
   $('x-dur').value=8;
-  openCommon('single');buildStats(a);layout();
+  openCommon('single');buildStats(a);listPresets('');layout();
 }
 function openAll(){
   var A=T.acts();if(!A.length)return;
@@ -1845,7 +1926,7 @@ function openAll(){
   $('x-title').textContent='Export animation video';
   $('xname').textContent='All '+A.length+' rides, drawn in date order'+(heat.hasTiles?'':'');
   $('x-dur').value=Math.round(Math.min(30,Math.max(8,5+A.length*.25)));
-  openCommon('all');buildStats(null);layout();
+  openCommon('all');buildStats(null);listPresets('');layout();
 }
 function close(){stopRun();resetOutput();X.bgTok++;$('xmodal').classList.remove('on');document.body.classList.remove('modalopen')}
 $('x-dur').addEventListener('change',function(){this.value=durVal()});
