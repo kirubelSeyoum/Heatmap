@@ -191,6 +191,9 @@ body.modalopen{overflow:hidden}
 .prow[hidden]{display:none}
 .prow input[type=text]{flex:1 1 140px;min-width:0;font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:6px;padding:6px}
 .mopts.all .only-single{display:none}
+.mopts:not(.all) .only-all{display:none}
+.mpre.pan canvas{cursor:grab;touch-action:none}
+.mpre.pan.grabbing canvas{cursor:grabbing}
 .xstats{border:1px solid var(--border);border-radius:6px;margin:0;padding:6px 10px;min-width:0}
 .xstats legend{font-size:12px;color:var(--ink2);padding:0 4px}
 .xstats label.chk{padding:3px 0}
@@ -294,6 +297,11 @@ body.modalopen{overflow:hidden}
     <div class="mopts" id="mopts">
       <h2 style="margin:0;font-size:16px" id="x-title">Export route video</h2>
       <div id="xname" style="color:var(--ink2)"></div>
+      <div class="xgrp only-all" id="x-frame">
+        <div style="font-size:12px;color:var(--ink2)">Map framing</div>
+        <div class="prow"><button type="button" id="x-vreset">Fit all rides</button><button type="button" id="x-vmain">Use main map view</button></div>
+        <p class="dnote" style="margin:0">Drag the preview to pan. Scroll or pinch to zoom.</p>
+      </div>
       <div class="xgrp" id="x-presets">
         <label for="x-preset">Presets
           <select id="x-preset"><option value="">Choose a saved preset...</option></select></label>
@@ -933,6 +941,7 @@ var api={
   makeLayer:function(w,h,budget){var L=mkLayer();sizeLayer(L,w,h,budget);return L},
   paint:paint,worldBounds:function(){return world.length?boundsOf(world):null},
   hasWorld:function(){return world.length>0},
+  getView:function(){return {cx:view.cx,cy:view.cy,S:view.S,W:W,H:H}},
   merc:function(lat,lon){return [mx(lon),my(lat)]},
   applySettings:function(){makeLut();labelInk();saveS();sched()}
 };
@@ -1600,18 +1609,21 @@ var ALLDEF={
   gain:{name:'Elevation gain',label:'ELEVATION',unit:'m',get:function(r){return Math.round(r.gsum).toLocaleString()},wide:function(P){return Math.round(P.totalGain).toLocaleString()}},
   date:{name:'Date',label:'DATE',unit:'',get:function(r,P){var a=r.cur>=0?T.acts()[P.ord[r.cur]]:null;return a&&a.start?a.start.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):''},wide:function(){return '88 Mar 8888'}}
 };
-function prepAll(W,H,o){
+function prepAll(W,H,o,fast){
   var A=T.acts(),b=heat.worldBounds();if(!b)return null;
   var u=Math.min(W,H)/1080,padX=Math.round(W*.07),statH=o.stats.length?Math.round(190*u):0,edge=Math.round(Math.min(H,W*1.78)*.07),gap=Math.round(50*u);
   var ra=o.pos==='top'?{x:padX,y:edge+statH+gap,w:W-2*padX,h:H-(edge+statH+gap)-edge}:{x:padX,y:edge,w:W-2*padX,h:H-2*edge-statH-gap},
       bw=Math.max(b[2]-b[0],1e-6),bh=Math.max(b[3]-b[1],1e-6),k=Math.min(ra.w/bw,ra.h/bh,2.5e7),cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2,
       key=W+'x'+H;
   if(!X.L||X.Lkey!==key){X.L=heat.makeLayer(W,H,1.6e6);X.Lkey=key}
-  var P={W:W,H:H,u:u,padX:padX,o:o,k:k,ox:ra.x+ra.w/2-cx*k,oy:ra.y+ra.h/2-cy*k,dp:Math.min(W,H)/720,L:X.L,bg:null,
+  var fk=k,fox=ra.x+ra.w/2-cx*k,foy=ra.y+ra.h/2-cy*k,mn=Math.min(W,H);
+  if(X.vauto||!X.vw)X.vw={cx:(W/2-fox)/fk,cy:(H/2-foy)/fk,s:fk/mn};
+  if(!X.vauto){k=X.vw.s*mn}
+  var P={W:W,H:H,u:u,padX:padX,o:o,k:k,ox:X.vauto?fox:W/2-X.vw.cx*k,oy:X.vauto?foy:H/2-X.vw.cy*k,dp:Math.min(W,H)/720,L:X.L,bg:null,
     sy:o.pos==='top'?edge:H-edge-statH,ord:ordList(),n:A.length,
     totalDist:A.reduce(function(s,a){return s+a.dist},0),totalSecs:A.reduce(function(s,a){return s+a.secs},0),totalGain:A.reduce(function(s,a){return s+a.gain},0)};
   P.scrim=o.pos==='top'?{a:edge+statH+gap*.5+40*u,b:0}:{a:P.sy-60*u,b:H};
-  heat.paint(null,W,H,P.k,P.ox,P.oy,P.dp,null,P.L,{measure:true});
+  if(!fast)heat.paint(null,W,H,P.k,P.ox,P.oy,P.dp,null,P.L,{measure:true});
   return P;
 }
 function drawAll(P,t){
@@ -1648,6 +1660,9 @@ function wantBg(o,P){
   return X.bgP;
 }
 function redrawStill(){if(X.mode==='all'){if(X.P2)drawAll(X.P2,1)}else if(X.P)drawFrame(X.P,1)}
+function fastLayout(){
+  if(X.mode!=='all'||!T.acts().length)return;
+  var o=opts();X.P2=prepAll(o.W,o.H,o,true);if(!X.P2)return;drawAll(X.P2,1)}
 function layout(){
   var o=opts();
   if(X.mode==='all'&&!T.acts().length)return;
@@ -1855,7 +1870,7 @@ function limitStats(){
   inputs.forEach(function(i){i.disabled=!i.checked&&n>=4})
 }
 function openCommon(mode){
-  X.mode=mode;resetOutput();stopRun();X.bgKey='';X.bgC=null;X.bgP=null;X.bgTok=(X.bgTok||0)+1;
+  X.mode=mode;X.vauto=true;X.vw=null;resetOutput();stopRun();X.bgKey='';X.bgC=null;X.bgP=null;X.bgTok=(X.bgTok||0)+1;
   $('mopts').classList.toggle('all',mode==='all');
   var bg=$('x-bg');[].forEach.call(bg.querySelectorAll('.needmap'),function(o){o.disabled=!HAS_MAP});
   if(!HAS_MAP&&bg.value!=='black')bg.value='black';
@@ -1868,6 +1883,7 @@ function openCommon(mode){
   note.push(CAN_SAVE?'With a black background, set the clip to Screen or Lighten in your editor and the black becomes transparent.':
     (window.__STANDALONE?'This browser cannot record video, so only the preview works.':'Saving a video needs the downloadable trail-heat-map.html. You can still preview the animation here.'));
   $('x-note').textContent=note.join(' ');
+  if(X.syncPan)X.syncPan();
   $('xmodal').classList.add('on');document.body.classList.add('modalopen');$('xmodal').querySelector('.mopts').scrollTop=0;
 }
 // ----- presets (saved in this browser) -----
@@ -1928,6 +1944,40 @@ function openAll(){
   $('x-dur').value=Math.round(Math.min(30,Math.max(8,5+A.length*.25)));
   openCommon('all');buildStats(null);listPresets('');layout();
 }
+// pan and zoom the map in the all-rides preview
+(function(){
+  var pts={},lastD=0,raf=0,debounce=0,box=cv.parentNode;
+  function active(){return X.mode==='all'&&!X.running&&!cv.hidden}
+  function scale(){var r=cv.getBoundingClientRect();return {r:r,f:cv.width/Math.max(1,r.width)}}
+  function kNow(){return X.vw.s*Math.min(cv.width,cv.height)}
+  function changed(){
+    X.vauto=false;if(raf)return;
+    raf=requestAnimationFrame(function(){raf=0;fastLayout()});
+    clearTimeout(debounce);debounce=setTimeout(function(){if(!X.running){resetOutput();layout()}},320)}
+  function zoomAt(f,px,py){
+    var k=kNow(),mn=Math.min(cv.width,cv.height),k2=Math.max(80,Math.min(5e7,k*f)),W=cv.width,H=cv.height;
+    var wx=X.vw.cx+(px-W/2)/k,wy=X.vw.cy+(py-H/2)/k;
+    X.vw.s=k2/mn;X.vw.cx=wx-(px-W/2)/k2;X.vw.cy=wy-(py-H/2)/k2;changed()}
+  cv.addEventListener('pointerdown',function(e){if(!active()||!X.vw)return;cv.setPointerCapture(e.pointerId);pts[e.pointerId]=[e.clientX,e.clientY];lastD=0;box.classList.add('grabbing')});
+  function up(e){delete pts[e.pointerId];lastD=0;if(!Object.keys(pts).length)box.classList.remove('grabbing')}
+  cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+  cv.addEventListener('pointermove',function(e){
+    var ids=Object.keys(pts);if(!ids.length||!active()||!X.vw)return;
+    var sc=scale();
+    if(ids.length===1){var p=pts[e.pointerId];if(!p)return;var k=kNow();
+      X.vw.cx-=(e.clientX-p[0])*sc.f/k;X.vw.cy-=(e.clientY-p[1])*sc.f/k;pts[e.pointerId]=[e.clientX,e.clientY];changed()}
+    else{pts[e.pointerId]=[e.clientX,e.clientY];
+      var a=pts[ids[0]],b=pts[ids[1]],d=Math.hypot(a[0]-b[0],a[1]-b[1]);
+      if(lastD)zoomAt(d/lastD,((a[0]+b[0])/2-sc.r.left)*sc.f,((a[1]+b[1])/2-sc.r.top)*sc.f);lastD=d}
+  });
+  cv.addEventListener('wheel',function(e){if(!active()||!X.vw)return;e.preventDefault();var sc=scale();
+    zoomAt(Math.exp(-e.deltaY*.0015),(e.clientX-sc.r.left)*sc.f,(e.clientY-sc.r.top)*sc.f)},{passive:false});
+  $('x-vreset').onclick=function(){if(X.running)return;X.vauto=true;resetOutput();layout()};
+  $('x-vmain').onclick=function(){
+    if(X.running||!X.vw)return;var v=heat.getView();if(!v||!v.W)return;
+    X.vw={cx:v.cx,cy:v.cy,s:v.S/Math.min(v.W,v.H)};X.vauto=false;resetOutput();layout()};
+  X.syncPan=function(){box.classList.toggle('pan',X.mode==='all')};
+})();
 function close(){stopRun();resetOutput();X.bgTok++;$('xmodal').classList.remove('on');document.body.classList.remove('modalopen')}
 $('x-dur').addEventListener('change',function(){this.value=durVal()});
 function relayout(){if(!X.running){resetOutput();layout()}}
