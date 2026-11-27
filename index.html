@@ -233,23 +233,23 @@ body.modalopen{overflow:hidden}
   <header>
     <div>
       <h1>Trail Heat</h1>
-      <p class="sub">Drop in your GPX files to see every road you have covered, and how much of it you rode, ran or walked. Files are read in your browser and never uploaded.</p>
+      <p class="sub">Drop in your activity files (GPX, TCX or FIT) to see every road you have covered, and how much of it you rode, ran or walked. Files are read in your browser and never uploaded.</p>
     </div>
     <div class="actions">
-      <label class="btn primary" for="file">Add GPX files</label>
-      <input id="file" type="file" accept=".gpx,application/gpx+xml,text/xml" multiple hidden>
+      <label class="btn primary" for="file">Add activity files</label>
+      <input id="file" type="file" accept=".gpx,.tcx,.fit,.gz,.csv,application/gpx+xml,text/xml" multiple hidden>
       <label class="btn" for="folder">Add folder</label>
-      <input id="folder" type="file" accept=".gpx" webkitdirectory multiple hidden>
+      <input id="folder" type="file" accept=".gpx,.tcx,.fit,.gz,.csv" webkitdirectory multiple hidden>
       <button id="sample" type="button">Load example data</button>
       <button id="clear" type="button">Clear</button>
       <button id="install" type="button" hidden>Install app</button>
     </div>
   </header>
   <p id="iosHint" class="sub" hidden>To install on iPhone or iPad: tap the Share button, then Add to Home Screen.</p>
-  <div id="drop"><span id="dropmsg">Drag GPX files or a whole folder here, or use the buttons. Duplicates are skipped.</span><span id="msg" aria-live="polite"></span></div>
+  <div id="drop"><span id="dropmsg">Drag GPX, TCX or FIT files (or a whole folder, such as a Strava export) here, or use the buttons. Duplicates are skipped.</span><span id="msg" aria-live="polite"></span></div>
   <div class="mapbox" id="mapbox">
     <canvas id="cv" aria-label="Heat map of all recorded tracks"></canvas>
-    <div class="empty" id="empty"><div>No tracks yet.<br>Add GPX files to draw your map.</div></div>
+    <div class="empty" id="empty"><div>No tracks yet.<br>Add activity files to draw your map.</div></div>
     <div class="hint" id="hint"></div>
     <div class="panel settings" id="settings" role="dialog" aria-label="Heat map settings">
       <b>Heat map settings</b>
@@ -263,6 +263,11 @@ body.modalopen{overflow:hidden}
       <input id="s-w" type="range" min="0.5" max="3" step="0.1">
       <div id="dimrow"><label for="s-dim"><span>Overlay opacity</span><span id="v-dim"></span></label>
       <input id="s-dim" type="range" min="0" max="95" step="1"></div>
+      <label class="chk" for="s-skipnb" style="flex-direction:row;align-items:center;gap:8px;margin-top:10px"><input id="s-skipnb" type="checkbox"> Skip non-cycling activities (needs Strava's activities.csv in the folder)</label>
+      <label class="chk" for="s-priv" style="flex-direction:row;align-items:center;gap:8px;margin-top:10px"><input id="s-priv" type="checkbox"> Hide the start and end of every ride</label>
+      <label for="s-privm"><span>Hidden distance at each end (m)</span></label>
+      <input id="s-privm" type="number" min="0" max="2000" step="50" inputmode="numeric">
+      <div class="sub" style="font-size:11px;margin:2px 0 0">Privacy: keeps your home and other start points off the map and out of exported videos. Totals still count the full ride.</div>
       <label for="s-mass"><span>Rider + bike weight (kg)</span><span id="v-mass"></span></label>
       <input id="s-mass" type="number" min="30" max="250" step="1" inputmode="decimal">
       <div class="sub" style="font-size:11px;margin:2px 0 0">Used only to estimate power for rides without a power meter.</div>
@@ -329,7 +334,7 @@ body.modalopen{overflow:hidden}
         <label for="x-ease">Easing
           <select id="x-ease"><option value="linear">Linear (constant pace)</option><option value="smooth" selected>Smooth (slow start and end)</option><option value="in">Ease in (starts slow)</option><option value="out">Ease out (ends slow)</option><option value="dramatic">Dramatic (long pause, fast middle)</option><option value="speed" class="only-single">Real speed (follows your pace, stops skipped)</option></select></label>
         <label for="x-size">Size
-          <select id="x-size"><option value="1080x1920" selected>Vertical 9:16 (1080 x 1920)</option><option value="720x1280">Vertical 9:16 small (720 x 1280)</option><option value="1080x1350">Portrait 4:5 (1080 x 1350)</option><option value="1080x1080">Square 1:1 (1080 x 1080)</option><option value="1920x1080">Landscape 16:9 (1920 x 1080)</option></select></label>
+          <select id="x-size"><option value="1080x1920" selected>Vertical 9:16 (1080 x 1920)</option><option value="720x1280">Vertical 9:16 small (720 x 1280)</option><option value="1080x1350">Portrait 4:5 (1080 x 1350)</option><option value="1080x1080">Square 1:1 (1080 x 1080)</option><option value="1920x1080">Landscape 16:9 (1920 x 1080)</option><option value="2160x3840">Vertical 9:16 4K (2160 x 3840)</option><option value="3840x2160">Landscape 16:9 4K (3840 x 2160)</option></select></label>
         <label for="x-engine" id="x-enginerow" hidden>Recording method
           <select id="x-engine"><option value="frames" selected>Frame by frame (smooth on any device, takes longer)</option><option value="live">Real time capture (fast, can stutter on slow devices)</option></select></label>
         <label for="x-pos">Stats position
@@ -574,27 +579,137 @@ function parseGpx(text,name){
   return finalize({name:name,pts:pts,ts:ts,ele:ele,hr:hr,cad:cad,pw:pw});
 }
 function keyOf(a){return a.name+'|'+Math.round(a.dist*100)+'|'+(a.start?+a.start:0)}
-function readFiles(list){
-  var files=[].slice.call(list).filter(function(f){return /\.gpx$/i.test(f.name)});
-  if(!files.length){msg('No GPX files found in that selection.');return}
-  var ok=0,dup=0,bad=[],left=files.length,fresh=[];
-  msg('Reading '+files.length+' file'+(files.length===1?'':'s')+'...');
-  files.forEach(function(f){
-    var r=new FileReader();
-    r.onload=function(){try{fresh.push(parseGpx(r.result,f.name))}catch(err){bad.push(f.name+' ('+err.message+')')}done()};
-    r.onerror=function(){bad.push(f.name);done()};
-    r.readAsText(f);
+function key2(a){return a.start?Math.round(a.dist*100)+'|'+(+a.start):''} // same ride under a different file name
+// ---------- other formats: TCX, FIT (and .gz of any of them) ----------
+function okVal(v,lo,hi){return v===v&&v>=lo&&v<=hi?v:NaN}
+function parseTcx(text,name){
+  var doc=new DOMParser().parseFromString(text,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length)throw new Error('not valid XML');
+  var NS=function(el,n){return el.getElementsByTagNameNS('*',n)},one=function(el,n){var x=NS(el,n)[0];return x?x.textContent:''};
+  var pts=[],ts=[],ele=[],hr=[],cad=[],pw=[],real=0;
+  [].slice.call(NS(doc,'Track')).forEach(function(tr){
+    [].slice.call(NS(tr,'Trackpoint')).forEach(function(tp){
+      var pos=NS(tp,'Position')[0];if(!pos)return; // indoor / no GPS
+      var la=parseFloat(one(pos,'LatitudeDegrees')),lo=parseFloat(one(pos,'LongitudeDegrees'));
+      if(!isFinite(la)||!isFinite(lo))return;
+      pts.push([la,lo]);real++;
+      var t=Date.parse(one(tp,'Time')),el=parseFloat(one(tp,'AltitudeMeters')),h=NS(tp,'HeartRateBpm')[0],hv=h?parseFloat(one(h,'Value')):NaN,
+          c=parseFloat(one(tp,'Cadence')),w=parseFloat(one(tp,'Watts'));
+      ts.push(isFinite(t)?t:NaN);ele.push(isFinite(el)?el:NaN);hr.push(okVal(hv,30,230));cad.push(okVal(c,0,250));pw.push(okVal(w,0,2500));
+    });
+    pts.push(null);ts.push(NaN);ele.push(NaN);hr.push(NaN);cad.push(NaN);pw.push(NaN);
   });
-  function done(){ if(--left) return;
-    all=all.filter(function(a){return !a.example});
-    var seen={};all.forEach(function(a){seen[keyOf(a)]=1});
-    var addedList=[];
-    fresh.forEach(function(a){var k=keyOf(a);if(seen[k]){dup++}else{seen[k]=1;all.push(a);addedList.push(a);ok++}});
-    recompute();
-    var base='Added '+ok+' ride'+(ok===1?'':'s')+(dup?', skipped '+dup+' duplicate'+(dup===1?'':'s'):'')+(bad.length?'. Could not read: '+bad.join(', '):'.');
-    msg(base);window.__refresh(true);
-    if(ok)saveRides(addedList).then(function(good){if(good)msg(base+(bad.length?'':' ')+' Saved on this device.');
-      try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}})}
+  if(real<2)throw new Error('no GPS track points');
+  return finalize({name:name,pts:pts,ts:ts,ele:ele,hr:hr,cad:cad,pw:pw});
+}
+function fitVal(dv,p,size,bt,le){
+  switch(bt){
+    case 0x00:case 0x02:case 0x0D:{if(size<1)return NaN;var v=dv.getUint8(p);return v===0xFF?NaN:v}
+    case 0x0A:{var z=dv.getUint8(p);return z===0?NaN:z}
+    case 0x01:{var s8=dv.getInt8(p);return s8===0x7F?NaN:s8}
+    case 0x83:{if(size<2)return NaN;var s16=dv.getInt16(p,le);return s16===0x7FFF?NaN:s16}
+    case 0x84:{if(size<2)return NaN;var u16=dv.getUint16(p,le);return u16===0xFFFF?NaN:u16}
+    case 0x8B:{if(size<2)return NaN;var z16=dv.getUint16(p,le);return z16===0?NaN:z16}
+    case 0x85:{if(size<4)return NaN;var s32=dv.getInt32(p,le);return s32===0x7FFFFFFF?NaN:s32}
+    case 0x86:{if(size<4)return NaN;var u32=dv.getUint32(p,le);return u32===0xFFFFFFFF?NaN:u32}
+    case 0x8C:{if(size<4)return NaN;var z32=dv.getUint32(p,le);return z32===0?NaN:z32}
+    default:return NaN}
+}
+function parseFit(buf,name){
+  var dv=new DataView(buf),n=buf.byteLength;
+  if(n<14)throw new Error('not a FIT file');
+  var hs=dv.getUint8(0);
+  if(String.fromCharCode(dv.getUint8(8),dv.getUint8(9),dv.getUint8(10),dv.getUint8(11))!=='.FIT')throw new Error('not a FIT file');
+  var end=Math.min(n,hs+dv.getUint32(4,true)),pos=hs,defs={},lastTs=0;
+  var pts=[],ts=[],ele=[],hr=[],cad=[],pw=[],real=0,SC=180/2147483648;
+  while(pos<end){
+    var h=dv.getUint8(pos++),local,comp=false,off=0,d,i;
+    if(h&0x80){comp=true;local=(h>>5)&3;off=h&31}
+    else if(h&0x40){
+      local=h&15;var hasDev=!!(h&0x20);pos++;
+      var le=dv.getUint8(pos++)===0,g=dv.getUint16(pos,le);pos+=2;var nf=dv.getUint8(pos++),fields=[],size=0;
+      for(i=0;i<nf;i++){var fs=dv.getUint8(pos+1);fields.push({num:dv.getUint8(pos),size:fs,bt:dv.getUint8(pos+2)});size+=fs;pos+=3}
+      if(hasDev){var nd=dv.getUint8(pos++);for(i=0;i<nd;i++){size+=dv.getUint8(pos+1);pos+=3}}
+      defs[local]={le:le,g:g,f:fields,size:size};continue}
+    else local=h&15;
+    d=defs[local];if(!d)throw new Error('corrupt FIT file');
+    var start=pos,rec={},p=pos;
+    for(i=0;i<d.f.length;i++){var f=d.f[i];
+      if(f.num===253||d.g===20){rec[f.num]=fitVal(dv,p,f.size,f.bt,d.le)}
+      p+=f.size}
+    if(comp){var base=lastTs-(lastTs&31),t2=base+off;if(off<(lastTs&31))t2+=32;rec[253]=t2}
+    if(rec[253]===rec[253]&&rec[253]!==undefined)lastTs=rec[253];
+    if(d.g===20){
+      var la=rec[0],lo=rec[1];
+      if(la===la&&lo===lo&&la!==undefined&&lo!==undefined){
+        pts.push([la*SC,lo*SC]);real++;
+        var t=rec[253];ts.push(t===t&&t!==undefined?(t+631065600)*1000:NaN);
+        var alt=rec[78]===rec[78]&&rec[78]!==undefined?rec[78]/5-500:(rec[2]===rec[2]&&rec[2]!==undefined?rec[2]/5-500:NaN);
+        ele.push(alt);hr.push(okVal(rec[3],30,230));cad.push(okVal(rec[4],0,250));pw.push(okVal(rec[7],0,2500));
+      }
+    }
+    pos=start+d.size;
+  }
+  pts.push(null);ts.push(NaN);ele.push(NaN);hr.push(NaN);cad.push(NaN);pw.push(NaN);
+  if(real<2)throw new Error('no GPS track points (indoor activity?)');
+  return finalize({name:name,pts:pts,ts:ts,ele:ele,hr:hr,cad:cad,pw:pw});
+}
+async function gunzip(buf){
+  if(typeof DecompressionStream==='undefined')throw new Error('this browser cannot open .gz files, unzip them first');
+  return await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+}
+function isAct(n){return /\.(gpx|tcx|fit)(\.gz)?$/i.test(n)}
+// Strava's activities.csv: names and types for each file
+function parseCsv(t){
+  var rows=[],row=[],cell='',q=false,i;
+  for(i=0;i<t.length;i++){var ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){cell+='"';i++}else q=false}else cell+=ch}
+    else if(ch==='"')q=true;
+    else if(ch===','){row.push(cell);cell=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(cell);cell='';if(row.length>1||row[0]!=='')rows.push(row);row=[]}
+    else cell+=ch}
+  if(cell!==''||row.length){row.push(cell);rows.push(row)}
+  return rows}
+function stravaMeta(text){
+  var rows=parseCsv(text),h=rows[0]||[],ci=function(n){return h.indexOf(n)},fi=ci('Filename'),ni=ci('Activity Name'),ti=ci('Activity Type'),map={};
+  if(fi<0)return map;
+  rows.slice(1).forEach(function(r){var fn=(r[fi]||'').split('/').pop().toLowerCase();if(fn)map[fn]={name:ni>=0?r[ni]:'',type:ti>=0?r[ti]:''}});
+  return map}
+var SKIPNB=true;try{SKIPNB=localStorage.getItem('trailheat-skipnb')!=='0'}catch(e){}
+function setSkip(v){SKIPNB=!!v;try{localStorage.setItem('trailheat-skipnb',v?'1':'0')}catch(e){}}
+async function readOne(f,meta){
+  var low=f.name.toLowerCase(),buf=await f.arrayBuffer(),shown=f.name.replace(/\.gz$/i,'');
+  if(/\.gz$/.test(low)){buf=await gunzip(buf);low=low.slice(0,-3)}
+  var nm=meta&&meta.name?meta.name:shown,a;
+  if(/\.fit$/.test(low))a=parseFit(buf,nm);
+  else{var text=new TextDecoder('utf-8').decode(buf);a=/\.tcx$/.test(low)?parseTcx(text,nm):parseGpx(text,nm)}
+  if(meta&&meta.type)a.type=meta.type;
+  return a}
+async function readFiles(list){
+  var all0=[].slice.call(list),csvF=all0.filter(function(f){return /(^|\/)activities\.csv$/i.test(f.name)})[0],
+      files=all0.filter(function(f){return isAct(f.name)});
+  if(!files.length){msg('No activity files found. Supported: GPX, TCX and FIT (also .gz).');return}
+  var meta={};
+  if(csvF){try{meta=stravaMeta(await csvF.text())}catch(e){}}
+  var ok=0,dup=0,skipped=0,bad=[],fresh=[],i;
+  msg('Reading '+files.length+' file'+(files.length===1?'':'s')+'...');
+  for(i=0;i<files.length;i++){
+    var f=files[i],m=meta[f.name.toLowerCase()];
+    if(SKIPNB&&m&&m.type&&!/ride|bike|cycl/i.test(m.type)){skipped++;continue}
+    try{fresh.push(await readOne(f,m))}catch(err){bad.push(f.name+' ('+err.message+')')}
+    if(i%8===7){msg('Reading '+(i+1)+' of '+files.length+'...');await new Promise(function(r){setTimeout(r,0)})}
+  }
+  all=all.filter(function(a){return !a.example});
+  var seen={},seen2={};all.forEach(function(a){seen[keyOf(a)]=1;var k2=key2(a);if(k2)seen2[k2]=1});
+  var addedList=[];
+  fresh.forEach(function(a){var k=keyOf(a),k2=key2(a);if(seen[k]||(k2&&seen2[k2])){dup++}else{seen[k]=1;if(k2)seen2[k2]=1;all.push(a);addedList.push(a);ok++}});
+  recompute();
+  var base='Added '+ok+' ride'+(ok===1?'':'s')+(dup?', skipped '+dup+' duplicate'+(dup===1?'':'s'):'')+
+    (skipped?', skipped '+skipped+' non-cycling activit'+(skipped===1?'y':'ies')+' (change in Adjust)':'')+
+    (bad.length?'. Could not read '+bad.length+': '+bad.slice(0,5).join(', ')+(bad.length>5?' and more':''):'.');
+  msg(base);window.__refresh(true);
+  if(ok)saveRides(addedList).then(function(good){if(good)msg(base+(bad.length?'':' ')+' Saved on this device.');
+    try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}});
 }
 function msg(t){$('msg').textContent=t}
 // Example data: synthetic out-and-back rides around Nairobi with stops, clearly labelled as examples.
@@ -623,7 +738,7 @@ function makeSample(){
   }
   return out;
 }
-window.__T={acts:function(){return acts},set:function(a){all=a;recompute()},setHidden:setHidden,removeRide:removeRide,hiddenList:hiddenList,readFiles:readFiles,msg:msg,makeSample:makeSample,$:$,BEST:BEST,
+window.__T={acts:function(){return acts},set:function(a){all=a;recompute()},setHidden:setHidden,removeRide:removeRide,hiddenList:hiddenList,readFiles:readFiles,setSkip:setSkip,skipNB:function(){return SKIPNB},isAct:isAct,msg:msg,makeSample:makeSample,$:$,BEST:BEST,
   loadSaved:loadSaved,wipeSaved:wipeSaved,trackOf:trackOf,TRACKS:TRACKS,estPower:estPower,kin:kin,smooth:smooth,rider:RIDER,setMass:setMass};
 })();
 </script>
@@ -646,10 +761,11 @@ var PAL={
  Violet:{hi:'#5be3b4',r:[[0,[20,22,26,0]],[.12,[50,20,90,150]],[.4,[130,60,220,230]],[.7,[240,120,200,255]],[1,[255,240,250,255]]]},
  Mono:{hi:'#ff8a3d',r:[[0,[20,22,26,0]],[.12,[60,60,60,150]],[.4,[150,150,150,230]],[.7,[220,220,220,255]],[1,[255,255,255,255]]]}
 };
-var DEF={palette:'Fire',intensity:1,width:1,dim:null,bg:'#14161a'};
-var S={palette:DEF.palette,intensity:DEF.intensity,width:DEF.width,dim:DEF.dim,bg:DEF.bg};
+var DEF={palette:'Fire',intensity:1,width:1,dim:null,bg:'#14161a',priv:true,privM:200};
+var S={palette:DEF.palette,intensity:DEF.intensity,width:DEF.width,dim:DEF.dim,bg:DEF.bg,priv:DEF.priv,privM:DEF.privM};
 try{var sv=JSON.parse(localStorage.getItem('trailheat-settings')||'null');if(sv&&PAL[sv.palette]){for(var q in DEF)if(sv[q]!==undefined)S[q]=sv[q]}}catch(e){}
 if(!/^#[0-9a-f]{6}$/i.test(S.bg))S.bg=DEF.bg;
+S.priv=S.priv!==false;S.privM=isFinite(+S.privM)?Math.max(0,Math.min(2000,+S.privM)):200;
 function saveS(){try{localStorage.setItem('trailheat-settings',JSON.stringify(S))}catch(e){}}
 function rgbaOf(hex,a){return 'rgba('+parseInt(hex.slice(1,3),16)+','+parseInt(hex.slice(3,5),16)+','+parseInt(hex.slice(5,7),16)+','+a+')'}
 // keep the legend readable on light or dark backgrounds
@@ -659,7 +775,10 @@ function mx(lo){return (lo+180)/360}
 function my(la){var r=la*Math.PI/180;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2}
 function buildWorld(){
   var A=T.acts();
-  world=A.map(function(a){var o=[];a.pts.forEach(function(p){if(p){o.push(mx(p[1]),my(p[0]))}else{o.push(NaN,NaN)}});return o});
+  // privacy: the first and last stretch of every ride is left off the map (rides shorter than both stretches vanish)
+  var pd=S.priv?S.privM/1000:0;
+  world=A.map(function(a){var o=[],lo=pd,hi=a.dist-pd,none=pd>0&&a.dist<2*pd+.05;
+    a.pts.forEach(function(p,i){if(p&&!none&&a.cum[i]>=lo&&a.cum[i]<=hi){o.push(mx(p[1]),my(p[0]))}else{o.push(NaN,NaN)}});return o});
   starts=A.map(function(a){return a.start?+a.start:Infinity});
   order=starts.map(function(_,i){return i}).sort(function(a,b){return starts[a]-starts[b]||a-b});
   rank=[];order.forEach(function(ix,r){rank[ix]=r});
@@ -943,6 +1062,8 @@ var api={
   hasWorld:function(){return world.length>0},
   getView:function(){return {cx:view.cx,cy:view.cy,S:view.S,W:W,H:H}},
   merc:function(lat,lon){return [mx(lon),my(lat)]},
+  privacy:function(){return S.priv?S.privM:0},
+  applyPrivacy:function(){buildWorld();saveS();sched()},
   applySettings:function(){makeLut();labelInk();saveS();sched()}
 };
 api.hasTiles=true;api.curDim=function(){return S.dim!=null?S.dim:PROV[pi].dim};
@@ -953,10 +1074,10 @@ api.mapProviders=PROV.map(function(p){return {name:p.name,dim:p.dim}});
 api.exportMap=function(w,h,k,ox,oy,pidx,dark){
   return new Promise(function(resolve){
     var P=PROV[pidx]||PROV[0],cvs=document.createElement('canvas');cvs.width=w;cvs.height=h;
-    var g=cvs.getContext('2d'),z=Math.max(0,Math.min(P.max,Math.round(Math.log(k/256)/Math.LN2))),n=Math.pow(2,z),ts=k/n;
+    var g=cvs.getContext('2d'),z=Math.max(0,Math.min(P.max,Math.ceil(Math.log(k/256)/Math.LN2-0.05))),n=Math.pow(2,z),ts=k/n;
     var x0=Math.floor(-ox/ts),x1=Math.floor((w-ox)/ts),y0=Math.max(0,Math.floor(-oy/ts)),y1=Math.min(n-1,Math.floor((h-oy)/ts)),list=[];
     for(var ty=y0;ty<=y1;ty++)for(var tx=x0;tx<=x1;tx++)list.push([((tx%n)+n)%n,ty,tx]);
-    if(!list.length||list.length>220)return resolve(null);
+    if(!list.length||list.length>600)return resolve(null);
     var left=list.length,okc=0,done=false,timer=setTimeout(finish,15000);
     function finish(){if(done)return;done=true;clearTimeout(timer);
       if(dark&&okc){ // dark streets: invert, drop the colour, add a cool tint
@@ -1094,12 +1215,12 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){win
 // touch devices: no drag and drop, folder pickers are rarely available, and some pickers grey out .gpx when accept is set
 (function(){
   var coarse=window.matchMedia&&matchMedia('(pointer:coarse)').matches;
-  if(coarse){$('file').removeAttribute('accept');$('folder').removeAttribute('accept');$('dropmsg').textContent='Tap Add GPX files, or Add folder to load a whole folder.'}
+  if(coarse){$('file').removeAttribute('accept');$('folder').removeAttribute('accept');$('dropmsg').textContent='Tap Add activity files, or Add folder to load a whole folder (GPX, TCX or FIT).'}
   // Add folder: use the directory picker where the browser has one, otherwise the standard folder input
   // (a browser without folder support simply shows its normal multi-file picker).
   function walkDir(h,out){return (async function go(dir){
     for await(const pair of dir.entries()){var e=pair[1];
-      if(e.kind==='file'){if(/\.gpx$/i.test(pair[0]))out.push(await e.getFile())}else await go(e)}})(h)}
+      if(e.kind==='file'){if(T.isAct(pair[0])||/(^|\/)activities\.csv$/i.test(pair[0]))out.push(await e.getFile())}else await go(e)}})(h)}
   var fl=document.querySelector('label[for=folder]');
   if(fl)fl.addEventListener('click',function(e){
     if(!window.showDirectoryPicker)return;
@@ -1326,7 +1447,8 @@ var S=heat.settings,D=heat.defaults;
 Object.keys(heat.palettes).forEach(function(k){var o=document.createElement('option');o.value=o.textContent=k;$('s-pal').appendChild(o)});
 function syncSettings(){
   $('s-pal').value=S.palette;$('s-bg').value=S.bg;
-  $('s-mass').value=T.rider.mass;
+  $('s-skipnb').checked=T.skipNB();
+  $('s-mass').value=T.rider.mass;$('s-priv').checked=!!S.priv;$('s-privm').value=S.privM;$('s-privm').disabled=!S.priv;
   $('s-int').value=S.intensity;$('v-int').textContent=Number(S.intensity).toFixed(2)+'x';
   $('s-w').value=S.width;$('v-w').textContent=Number(S.width).toFixed(1)+'x';
   if(heat.hasTiles){$('dimrow').style.display='';var d=Math.round(heat.curDim()*100);$('s-dim').value=d;$('v-dim').textContent=d+'%'}
@@ -1334,13 +1456,16 @@ function syncSettings(){
 }
 window.__syncDim=syncSettings;
 if(!heat.hasTiles)document.querySelector('label[for=s-bg]').textContent='Background colour';
+$('s-skipnb').onchange=function(){T.setSkip(this.checked)};
+$('s-priv').onchange=function(){S.priv=this.checked;heat.applyPrivacy();syncSettings()};
+$('s-privm').onchange=function(){var m=parseFloat(this.value);S.privM=isFinite(m)?Math.max(0,Math.min(2000,m)):200;heat.applyPrivacy();syncSettings()};
 $('s-mass').onchange=function(){var m=parseFloat(this.value);if(m>=30&&m<=250){T.setMass(m);renderDetail()}else this.value=T.rider.mass};
 $('s-pal').onchange=function(){S.palette=this.value;heat.applySettings();syncSettings()};
 $('s-int').oninput=function(){S.intensity=+this.value;heat.applySettings();syncSettings()};
 $('s-w').oninput=function(){S.width=+this.value;heat.applySettings();syncSettings()};
 $('s-bg').oninput=function(){S.bg=this.value;heat.applySettings();syncSettings()};
 $('s-dim').oninput=function(){S.dim=this.value/100;heat.applySettings();syncSettings()};
-$('s-reset').onclick=function(){S.palette=D.palette;S.intensity=D.intensity;S.width=D.width;S.dim=D.dim;S.bg=D.bg;heat.applySettings();syncSettings()};
+$('s-reset').onclick=function(){S.palette=D.palette;S.intensity=D.intensity;S.width=D.width;S.dim=D.dim;S.bg=D.bg;S.priv=D.priv;S.privM=D.privM;heat.applyPrivacy();heat.applySettings();syncSettings()};
 $('cfg').onclick=function(){$('settings').classList.toggle('on')};
 $('s-close').onclick=function(){$('settings').classList.remove('on')};
 heat.escapeHandled=function(){return segMode>0||$('settings').classList.contains('on')};
@@ -1370,7 +1495,7 @@ window.__onData=function(){sel=-1;renderDetail();if(segMode)cancelSeg();renderSe
 syncSettings();heat.resize();
 T.loadSaved().then(function(list){
   if(list.length){T.set(list);var nv=T.acts().length;T.msg('Restored '+nv+' saved ride'+(nv===1?'':'s')+' from this device'+(nv<list.length?' ('+(list.length-nv)+' hidden).':'.'))}
-  else{T.set(T.makeSample());T.msg('Showing generated example rides. Add your own GPX files or a whole folder to replace them.')}
+  else{T.set(T.makeSample());T.msg('Showing generated example rides. Add your own activity files or a whole folder to replace them.')}
   window.__refresh(true);
 });
 })();
@@ -1430,8 +1555,10 @@ function rampLut(div){
 // ----- layout and sampling for a single ride -----
 function prep(a,W,H,o){
   var wantGraph=o.graph,pos=o.pos,ser=series(a,o.colby),V=[],E=[],i,j;
-  for(i=0;i<a.pts.length;i++)if(a.pts[i]){var mc=heat.merc(a.pts[i][0],a.pts[i][1]);
+  var pm=heat.privacy()/1000;
+  for(i=0;i<a.pts.length;i++)if(a.pts[i]&&(!pm||(a.cum[i]>=pm&&a.cum[i]<=a.dist-pm))){var mc=heat.merc(a.pts[i][0],a.pts[i][1]);
     V.push({x:mc[0],y:mc[1],c:a.cum[i],mv:ser.mv[i],gn:ser.gn[i],el:0,spd:ser.spd[i],hr:ser.hr[i],cad:ser.cad[i],pw:ser.pw[i],cv:ser.tr?ser.tr.vals[i]:NaN});E.push(a.ele[i])}
+  if(V.length&&pm){var c0=V[0].c,m0=V[0].mv,g0=V[0].gn;V.forEach(function(v){v.c-=c0;v.mv-=m0;v.gn-=g0})} // stats count from the first visible point
   var firstFin=NaN,nFin=0,emin=1e9,emax=-1e9;
   for(j=0;j<E.length;j++)if(E[j]===E[j]){if(firstFin!==firstFin)firstFin=E[j];nFin++;if(E[j]<emin)emin=E[j];if(E[j]>emax)emax=E[j]}
   var hasEle=nFin>5&&emax-emin>0.5,graph=!!wantGraph&&hasEle;
@@ -1615,7 +1742,7 @@ function prepAll(W,H,o,fast){
   var ra=o.pos==='top'?{x:padX,y:edge+statH+gap,w:W-2*padX,h:H-(edge+statH+gap)-edge}:{x:padX,y:edge,w:W-2*padX,h:H-2*edge-statH-gap},
       bw=Math.max(b[2]-b[0],1e-6),bh=Math.max(b[3]-b[1],1e-6),k=Math.min(ra.w/bw,ra.h/bh,2.5e7),cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2,
       key=W+'x'+H;
-  if(!X.L||X.Lkey!==key){X.L=heat.makeLayer(W,H,1.6e6);X.Lkey=key}
+  if(!X.L||X.Lkey!==key){X.L=heat.makeLayer(W,H,W*H*1.01);X.Lkey=key}
   var fk=k,fox=ra.x+ra.w/2-cx*k,foy=ra.y+ra.h/2-cy*k,mn=Math.min(W,H);
   if(X.vauto||!X.vw)X.vw={cx:(W/2-fox)/fk,cy:(H/2-foy)/fk,s:fk/mn};
   if(!X.vauto){k=X.vw.s*mn}
@@ -1764,12 +1891,14 @@ function muxMp4(w,h,desc,samples,fps){
   return new Blob([ftyp,moov,mh].concat(samples.map(function(s){return s.d})),{type:'video/mp4'});
 }
 function yieldUI(){return new Promise(function(res){var ch=new MessageChannel();ch.port1.onmessage=function(){res()};ch.port2.postMessage(0)})}
-var CODECS=['avc1.640032','avc1.64002A','avc1.4d0032','avc1.42003e'];
+var CODECS=['avc1.640034','avc1.640033','avc1.640032','avc1.64002A','avc1.4d0032','avc1.42003e'];
+function bitrateFor(W,H){return Math.max(5e6,Math.min(50e6,Math.round(W*H*7.5)))}
 async function recordFrames(o,frame,ease,all){
   var FPS=30,total=Math.round((o.dur+1.5)*FPS),W=o.W,H=o.H,cfg=null,i;
   for(i=0;i<CODECS.length&&!cfg;i++){
-    var tryCfg={codec:CODECS[i],width:W,height:H,bitrate:W*H>=2e6?9e6:5e6,framerate:FPS,avc:{format:'avc'}};
-    try{var sup=await VideoEncoder.isConfigSupported(tryCfg);if(sup&&sup.supported)cfg=tryCfg}catch(e){}
+    var base={codec:CODECS[i],width:W,height:H,bitrate:bitrateFor(W,H),framerate:FPS,avc:{format:'avc'}},
+        vars=[Object.assign({},base,{latencyMode:'quality',bitrateMode:'variable'}),base];
+    for(var vi=0;vi<vars.length&&!cfg;vi++){try{var sup=await VideoEncoder.isConfigSupported(vars[vi]);if(sup&&sup.supported)cfg=vars[vi]}catch(e){}}
   }
   if(!cfg)return null; // caller falls back to real-time capture
   var samples=[],desc=null,err=null,enc=new VideoEncoder({
@@ -1824,7 +1953,7 @@ function run(record){
       return;
     }
     mime=pickMime();
-    try{rec=new MediaRecorder(cv.captureStream(30),mime?{mimeType:mime,videoBitsPerSecond:o.W>=1080?10e6:6e6}:{videoBitsPerSecond:6e6})}
+    try{rec=new MediaRecorder(cv.captureStream(30),mime?{mimeType:mime,videoBitsPerSecond:bitrateFor(o.W,o.H)}:{videoBitsPerSecond:6e6})}
     catch(e){setStatus('This browser could not start recording.');stopRun();return}
     rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
     rec.onstop=function(){
@@ -1926,6 +2055,7 @@ $('x-pre-del').onclick=function(){
   presets=presets.filter(function(q){return !(q.name===n&&q.mode===X.mode)});savePresets();listPresets('');setStatus('Deleted preset "'+n+'".')};
 function open(i){
   var a=T.acts()[i];if(!a)return;
+  var pz=heat.privacy()/1000;if(pz&&a.dist<2*pz+.05){T.msg('This ride is shorter than the hidden start and end zones, so there is nothing to show. Lower the hidden distance in Adjust to export it.');return}
   X.a=a;
   $('x-title').textContent='Export route video';
   $('xname').textContent=a.name+' · '+F.fmt(a.dist,1)+' km';
